@@ -15,9 +15,9 @@ jobs:
     name: update
     runs-on: ubuntu-latest
     steps:
-      # zizmor: ignore[artipacked] this job commits and pushes, so it is the one
-      # checkout that has to keep its credentials.
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # This job commits and pushes, so it is the one checkout that has to
+      # keep its credentials.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # zizmor: ignore[artipacked]
         with:
           # A PAT rather than GITHUB_TOKEN: pushes made with GITHUB_TOKEN do not
           # re-trigger workflows, so CI would never run against the regenerated
