@@ -30,6 +30,10 @@ jobs:
       meta: ${{ steps.list.outputs.meta }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Nothing here runs git against the remote, and these jobs
+          # build expressions from the branch under review.
+          persist-credentials: false
 
       - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
         with:
@@ -66,6 +70,10 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Nothing here runs git against the remote, and these jobs
+          # build expressions from the branch under review.
+          persist-credentials: false
 
       - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
         with:
@@ -77,18 +85,27 @@ jobs:
             # Trust the substituter/key the flake declares via nixConfig.
             accept-flake-config = true
 
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
           name: unstoppablemango
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - run: nix build ".#${{ matrix.image }}"
+      # Through the environment rather than interpolated into the script: the
+      # image names come from the branch's own flake, so a pull request could
+      # otherwise choose what this shell runs.
+      - env:
+          IMAGE: ${{ matrix.image }}
+        run: nix build ".#${IMAGE}"
 
       # skopeo's `nix:` transport reads layer blobs out of the local store, so
       # the push has to happen in the same job that built the image. The
       # per-arch tags are intermediate; `index` assembles the real ones.
+      #
+      # Guarded on the default branch rather than merely "not a pull request":
+      # workflow_dispatch accepts any ref, and publishing from a feature branch
+      # would let `index` move `latest` and the version tag onto it.
       - name: Push per-arch image
-        if: github.event_name != 'pull_request'
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           IMAGE: ${{ matrix.image }}
           ARCH: ${{ matrix.arch }}
@@ -106,7 +123,9 @@ jobs:
   index:
     name: index (${{ matrix.image }})
     needs: [enumerate, publish]
-    if: github.event_name != 'pull_request'
+    # Matches the push step's guard: these are the tags consumers pull, so they
+    # only ever move for the default branch.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     strategy:
       fail-fast: false
       matrix:
@@ -154,7 +173,7 @@ jobs:
     # generated from the image list, which reports a context per leg and cannot
     # be required by a ruleset without naming every image.
     #
-    # `index` is deliberately absent: it does not run on pull requests, and
+    # `index` is deliberately absent: it only runs on the default branch, and
     # publishing is not a merge gate.
     needs: [enumerate, publish]
     if: always()
