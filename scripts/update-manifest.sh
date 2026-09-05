@@ -15,8 +15,10 @@ if [ ! -f "${dir}/base.nix" ]; then
   exit 0
 fi
 
-eval "$(nix eval --json --file "${dir}/base.nix" |
-  jq -r '@sh "registry=\(.registryUrl) image=\(.imageName) version=\(.version)"')"
+base="$(nix eval --json --file "${dir}/base.nix")"
+registry="$(jq -r '.registryUrl' <<<"${base}")"
+image="$(jq -r '.imageName' <<<"${base}")"
+version="$(jq -r '.version' <<<"${base}")"
 
 raw="$(skopeo inspect --raw "docker://${registry}/${image}:${version}")"
 
@@ -37,16 +39,30 @@ for pair in 'x86_64-linux amd64' 'aarch64-linux arm64'; do
     fi
 
     ref="docker://${registry}/${image}@${digest}"
-    skopeo inspect --raw "${ref}" >"${out}"
+    manifest="$(skopeo inspect --raw "${ref}")"
   else
-    # Single-architecture upstream: the same manifest serves every system.
-    printf '%s' "${raw}" >"${out}"
+    # Upstream published a plain manifest rather than an index, so it describes
+    # exactly one architecture. The check below decides whether it is this one.
+    manifest="${raw}"
   fi
 
   # nix2container replaces the base image's config rather than merging into
   # it, so the config is pinned too and the derivation inherits from it
   # explicitly. Without this the image silently loses the base image's PATH.
-  skopeo inspect --config "${ref}" | jq --sort-keys . >"${cfg}"
+  config="$(skopeo inspect --config "${ref}")"
+
+  # pullImageFromManifest trusts whichever manifest it is handed; it does not
+  # check the platform. Pinning one under the wrong system would build an image
+  # of foreign layers that only fails when something runs it. Checked before
+  # anything is written, so a rejected image leaves no half-updated pins.
+  upstream_arch="$(jq -r '.architecture' <<<"${config}")"
+  if [ "${upstream_arch}" != "${arch}" ]; then
+    echo "${name}: ${image}:${version} has no linux/${arch}, got ${upstream_arch}" >&2
+    exit 1
+  fi
+
+  printf '%s' "${manifest}" >"${out}"
+  jq --sort-keys . <<<"${config}" >"${cfg}"
 
   echo "${name}: pinned ${system} -> ${out}, ${cfg}"
 done
