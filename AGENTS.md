@@ -68,6 +68,10 @@ Three traps, all of which `images/actions-runner/` demonstrates:
 2. **nix2container replaces the base image's config rather than merging into it.** Anything not restated in `config` is lost, `PATH` included. This is why the base config is pinned and inherited explicitly.
 3. Link added tools into `/usr/local` with `buildEnv`'s `extraPrefix`, never into `/`. A layer with a real `./bin` directory replaces the base image's `/bin -> usr/bin` symlink and hides everything resolved through it.
 
+An image that ships `nix` itself needs `initializeNixDatabase = true`, which registers the store paths the image carries so nix sees a store rather than a pile of unknown files.
+Set `nixUid`/`nixGid` alongside it: nix2container applies mode `0755` and those ids to the whole database path, so unlike `dockerTools`' `includeNixDB`, which writes `db.sqlite` 0600 root, no chmod pass is needed afterwards.
+`images/actions-runner/` uses this, with the base image's runner user.
+
 Pinned manifests and configs are excluded from treefmt: manifests are stored verbatim as the registry served them, configs normalised through `jq --sort-keys`.
 Reformatting them would make CI's drift check compare against prettier's output.
 
