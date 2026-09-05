@@ -33,7 +33,7 @@ There is no test suite.
 `SYSTEM` defaults to `builtins.currentSystem`; override it to enumerate for another system.
 
 Images are Linux-only.
-On darwin the flake still evaluates and formats, but `packages` is empty.
+On Darwin the flake still evaluates and formats, but `packages` is empty.
 
 ## Architecture
 
