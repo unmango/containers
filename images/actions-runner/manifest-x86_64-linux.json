@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:c1951ba5296d06ea1b8571e58d9decbbadc3c6165dcb3a1ea71efd039bb06daf",
+    "size": 5406
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:0926a8eb0e608a5c6888d1cd5594184bdf3ed3aa311dba5b42a547caefdc6f2e",
+      "size": 29752807
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:9d8a18a76768459ac18d9eaeb9e806434cfa44c57c540488947078250dc90e7f",
+      "size": 16779011
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:a6c6ad51e3fa8139f70e19eb37190830a219eff2da12969f616cede9356d6838",
+      "size": 3564
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:4ccb2ff4fd190096a59926faeb8eb937d516bd967704b0868a672ceb6a6377b8",
+      "size": 36231078
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:2b9c970847397df0ce733e44af6c55d82c170e259664a198b05510b197638628",
+      "size": 27852952
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:b512cccf5884dadeb0431d918789bbaf46f33b1602cafa75681d1d659d429abb",
+      "size": 3835
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "size": 32
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:aecebaef270fd7162b6086045d2dd8f5e4b3fa6136eead4f3e401d7a5745dd9b",
+      "size": 321349159
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:b3cb48e168cd68b3605735cb7f32c761ef47c65b3f1cb166a122a6a4aa297cc9",
+      "size": 22880293
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:2946970b00fedc443425e63c1ef39048bb56b5c77c73972f3fab9a37bafdd04e",
+      "size": 86955148
+    }
+  ],
+  "annotations": {
+    "org.opencontainers.image.description": "https://github.com/actions/runner/releases/tag/v2.337.0"
+  }
+}
