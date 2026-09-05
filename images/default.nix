@@ -51,6 +51,13 @@
             lib.mapAttrsToList (name: path: { inherit name path; }) (images // archives)
           );
 
+          # Archives are not published, so they are absent from the image matrix
+          # CI generates from `imageMeta`. This aggregate is how CI builds them
+          # without naming any of them.
+          archives = pkgs.linkFarm "unmango-containers-archives" (
+            lib.mapAttrsToList (name: path: { inherit name path; }) archives
+          );
+
           # Re-exported so these exact store paths land in the cache. `copyTo`
           # shells out to this skopeo, and it is not in nixpkgs.
           inherit (inputs'.nix2container.packages) nix2container-bin skopeo-nix2container;
