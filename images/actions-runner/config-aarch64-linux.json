@@ -1,0 +1,149 @@
+{
+  "architecture": "arm64",
+  "config": {
+    "Cmd": [
+      "/bin/bash"
+    ],
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "APP_UID=1654",
+      "ASPNETCORE_HTTP_PORTS=8080",
+      "DOTNET_RUNNING_IN_CONTAINER=true",
+      "DEBIAN_FRONTEND=noninteractive",
+      "RUNNER_MANUALLY_TRAP_SIG=1",
+      "ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1",
+      "ImageOS=ubuntu24"
+    ],
+    "Labels": {
+      "org.opencontainers.image.licenses": "MIT",
+      "org.opencontainers.image.source": "https://github.com/actions/runner",
+      "org.opencontainers.image.version": "24.04"
+    },
+    "User": "runner",
+    "WorkingDir": "/home/runner"
+  },
+  "created": "2026-08-27T00:22:14.702400682Z",
+  "history": [
+    {
+      "created": "2026-08-17T13:11:31.291784067Z",
+      "created_by": "/bin/sh -c #(nop)  ARG RELEASE",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-08-17T13:11:31.351279375Z",
+      "created_by": "/bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-08-17T13:11:31.397969498Z",
+      "created_by": "/bin/sh -c #(nop)  LABEL org.opencontainers.image.version=24.04",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-08-17T13:11:34.109791427Z",
+      "created_by": "/bin/sh -c #(nop) ADD file:0387b3d029de8fa08641ccfaa44c6a4ad07b93035420d53b49783ea27527d153 in / "
+    },
+    {
+      "created": "2026-08-17T13:11:34.47448671Z",
+      "created_by": "/bin/sh -c #(nop)  CMD [\"/bin/bash\"]",
+      "empty_layer": true
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-17T16:28:43.915648171Z",
+      "created_by": "ENV APP_UID=1654 ASPNETCORE_HTTP_PORTS=8080 DOTNET_RUNNING_IN_CONTAINER=true",
+      "empty_layer": true
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-17T16:28:43.915648171Z",
+      "created_by": "RUN /bin/sh -c apt-get update     && apt-get install -y --no-install-recommends         ca-certificates                 libc6         libgcc-s1         libicu74         libssl3t64         libstdc++6         tzdata         tzdata-legacy         zlib1g     && rm -rf /var/lib/apt/lists/* # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-17T16:28:45.157291524Z",
+      "created_by": "RUN /bin/sh -c groupadd         --gid=$APP_UID         app     && useradd --no-log-init         --uid=$APP_UID         --gid=$APP_UID         --create-home         app # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:20:49.616513566Z",
+      "created_by": "ENV DEBIAN_FRONTEND=noninteractive",
+      "empty_layer": true
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:20:49.616513566Z",
+      "created_by": "ENV RUNNER_MANUALLY_TRAP_SIG=1",
+      "empty_layer": true
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:20:49.616513566Z",
+      "created_by": "ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1",
+      "empty_layer": true
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:20:49.616513566Z",
+      "created_by": "ENV ImageOS=ubuntu24",
+      "empty_layer": true
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:20:49.616513566Z",
+      "created_by": "RUN /bin/sh -c apt update -y     && apt install -y --no-install-recommends sudo lsb-release gpg-agent software-properties-common curl jq unzip     && rm -rf /var/lib/apt/lists/* # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:09.432639955Z",
+      "created_by": "RUN /bin/sh -c add-apt-repository ppa:git-core/ppa     && apt update -y     && apt install -y git     && rm -rf /var/lib/apt/lists/* # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:11.03360727Z",
+      "created_by": "RUN /bin/sh -c adduser --disabled-password --gecos \"\" --uid 1001 runner     && groupadd docker --gid 123     && usermod -aG sudo runner     && usermod -aG docker runner     && echo \"%sudo   ALL=(ALL:ALL) NOPASSWD:ALL\" > /etc/sudoers     && echo \"Defaults env_keep += \\\"DEBIAN_FRONTEND\\\"\" >> /etc/sudoers     && chmod 777 /home/runner # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:11.041455142Z",
+      "created_by": "WORKDIR /home/runner"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:14.03708799Z",
+      "created_by": "COPY --chown=runner:docker /actions-runner . # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:14.212786462Z",
+      "created_by": "COPY /usr/local/lib/docker/cli-plugins/docker-buildx /usr/local/lib/docker/cli-plugins/docker-buildx # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:14.702400682Z",
+      "created_by": "RUN /bin/sh -c install -o root -g root -m 755 docker/* /usr/bin/ && rm -rf docker # buildkit"
+    },
+    {
+      "comment": "buildkit.dockerfile.v0",
+      "created": "2026-08-27T00:22:14.702400682Z",
+      "created_by": "USER runner",
+      "empty_layer": true
+    }
+  ],
+  "os": "linux",
+  "rootfs": {
+    "diff_ids": [
+      "sha256:646eea22414270d74b0c9e9d6d3b9550701ae62e658a099825d4d15045a3630b",
+      "sha256:79c0f260b49da2a197ee69ea1a1e838fb64941c64356d2f4f5ee4f43bdebf54a",
+      "sha256:a7427d4ae7e83d80608fbe2bc0b414ad871f2265c64ff507716efe33a6ca4404",
+      "sha256:5a13c3536ea0f2b128f360408767e947f28b60d43997f03166f614df68a4e6b5",
+      "sha256:34392751e20f9ae61284d3d14b0a83882b4cf051b03b1f3d90138c1a902f8f1c",
+      "sha256:2d92436f524b5da6da9ee4e45e17eece4bf91997ea4ece5d6dbce78fe6bc8dd7",
+      "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+      "sha256:1a32a0788a8b32874c8b35dcf41b2c6b34a00b01cb6b7b859dbf99dd7ae3e3ea",
+      "sha256:3d81d52f25d5199a80ded3f350ff5be7483b12e4eb4315e6f0e3447b7ce9b8e5",
+      "sha256:38996af1eba0159e90a470edf830e73e7753a4fc0c0da3bcce233871a81359c3"
+    ],
+    "type": "layers"
+  }
+}

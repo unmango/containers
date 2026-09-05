@@ -4,10 +4,52 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
   build:
+    name: build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x86_64-linux
+            runs-on: ubuntu-latest
+            build: true
+          - name: aarch64-linux
+            runs-on: ubuntu-24.04-arm
+            build: true
+          # Linux images cannot be built on darwin; this leg only checks that
+          # the flake still evaluates and formats there.
+          - name: aarch64-darwin
+            runs-on: macos-latest
+            build: false
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            # Trigger Nix GC on GitHub-hosted runners when < 3GiB free; keep up to 10GiB free.
+            min-free = 3221225472
+            max-free = 10737418240
+            # Trust the substituter/key the flake declares via nixConfig.
+            accept-flake-config = true
+
+      # An empty authToken degrades to read-only, which is what fork PRs get.
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        with:
+          name: unstoppablemango
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - run: make check
+
+      - if: matrix.build
+        run: make build
+
+  manifests:
+    name: manifests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -15,10 +57,10 @@ jobs:
       - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            accept-flake-config = true
 
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
-        with:
-          name: unstoppablemango
+      - run: nix develop -c make manifests
 
-      - run: nix flake check
-      - run: nix build .#
+      - name: Pinned base manifests are stale, run `make manifests`
+        run: git diff --exit-code
