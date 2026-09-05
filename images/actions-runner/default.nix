@@ -3,8 +3,10 @@
   gnumake,
   lib,
   mkImage,
+  nix,
   nix2container,
   stdenv,
+  writeTextDir,
   xz,
 }:
 let
@@ -42,11 +44,27 @@ let
     name = "actions-runner-tools";
     paths = [
       gnumake
+      nix
       xz
     ];
     pathsToLink = [ "/bin" ];
     extraPrefix = "/usr/local";
   };
+
+  # Settings every job wants, so no workflow has to pass them. Anything
+  # deployment-specific, a substituter above all, arrives as NIX_CONFIG at
+  # runtime, which nix merges on top of this file.
+  nixConf = writeTextDir "etc/nix/nix.conf" ''
+    experimental-features = nix-command flakes pipe-operators
+    # Nothing here runs as root and there is no daemon, so builds run as the
+    # invoking user and the sandbox is unavailable.
+    sandbox = false
+  '';
+
+  # The base image's runner user, which owns the nix database so it can build
+  # in the store this image ships.
+  runnerUid = 1001;
+  runnerGid = 1001;
 in
 mkImage {
   name = "actions-runner";
@@ -58,15 +76,34 @@ mkImage {
     imageTag = base.version;
   };
 
-  copyToRoot = [ tools ];
+  copyToRoot = [
+    tools
+    nixConf
+  ];
+
+  # Registers the store paths this image ships in /nix/var/nix/db, which is what
+  # makes the baked nix usable instead of a pile of files nix does not know
+  # about. Consumers can then skip cachix/install-nix-action.
+  #
+  # Unlike dockerTools' includeNixDB, which writes the database 0600 root and
+  # needs a chmod pass afterwards, nix2container applies mode 0755 plus these
+  # ids to the whole database path.
+  initializeNixDatabase = true;
+  nixUid = runnerUid;
+  nixGid = runnerGid;
 
   config = baseConfig // {
     # OCI config keys are capitalized. unmango/pkgs' github-runner image used
     # lowercase `user`/`entrypoint`, which runtimes silently ignore.
     User = "runner";
     WorkingDir = "/home/runner";
-    # cachix/cachix-action reads $USER, which the base image does not set.
-    Env = baseConfig.Env ++ [ "USER=runner" ];
+    Env = baseConfig.Env ++ [
+      # cachix/cachix-action reads $USER, which the base image does not set.
+      "USER=runner"
+      # The base image is Ubuntu, so nix reaches substituters through its CA
+      # bundle rather than a store path of its own.
+      "NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+    ];
     Entrypoint = [ "/home/runner/run.sh" ];
     # Cleared so the base image's `Cmd = [ "/bin/bash" ]` is not inherited and
     # passed to run.sh as an argument.

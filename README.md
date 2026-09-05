@@ -9,13 +9,13 @@ This repository is only for wrapping software someone else wrote.
 
 ## Images
 
-| Image                 | Wraps                                                            |
-| --------------------- | ---------------------------------------------------------------- |
-| `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus `make` and `xz` |
-| `coredns`             | [CoreDNS][]                                                      |
-| `gitlab-operator-v2`  | [GitLab Operator][]                                              |
-| `hercules-ci-agent`   | [Hercules CI agent][]                                            |
-| `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`       |
+| Image                 | Wraps                                                                   |
+| --------------------- | ----------------------------------------------------------------------- |
+| `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus `nix`, `make` and `xz` |
+| `coredns`             | [CoreDNS][]                                                             |
+| `gitlab-operator-v2`  | [GitLab Operator][]                                                     |
+| `hercules-ci-agent`   | [Hercules CI agent][]                                                   |
+| `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`              |
 
 ## Usage
 
@@ -58,6 +58,8 @@ Two things to know:
 
 A third trap, if you add tools on top of a base image: link them into `/usr/local` with `buildEnv`'s `extraPrefix`, never into `/`.
 A layer containing a real `./bin` directory replaces the base image's `/bin -> usr/bin` symlink and hides everything the base image resolves through it.
+
+If the image ships `nix` itself, set `initializeNixDatabase = true` so the store paths it carries are registered, and set `nixUid`/`nixGid` to the user that will build in that store.
 
 Renovate bumps `version` in `base.nix` but cannot regenerate the pinned files, so `.github/workflows/update-manifests.yml` does it on Renovate branches and CI fails on drift.
 
