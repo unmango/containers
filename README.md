@@ -43,9 +43,13 @@ Both take their config the same way.
 `--config /etc/hercules-ci-agent/agent.json` is the default `Cmd`; no config is baked in, so mount one there or pass `--config` yourself.
 JSON rather than TOML, because TOML cannot express `null` in `labels` and silently drops subtables.
 The config supplies `baseDirectory`, and the operator installs `cluster-join-token.key` and `binary-caches.json` under its `secrets` directory.
+Leave `baseDirectory` at `/var/lib/hercules-ci-agent` or mount the state volume at whatever path you set it to.
+The agent writes work directories and `secretState/session.key` under `baseDirectory` and nowhere else, so a mismatch leaves that state on the container's writable layer, where it is lost on the next `docker run`.
 
 Both run as uid 1000, which must own the state volume.
 Root is not an option: the agent refuses to host an effect as root.
+Both images ship `/var/lib/hercules-ci-agent` and `/tmp` owned by uid 1000, so Docker seeds a fresh named volume with that ownership.
+A bind mount keeps the host directory's ownership instead, so `chown 1000:1000` it first.
 Effects additionally need working unprivileged user namespaces for `crun`; upstream reports they work under Podman but not under systemd-nspawn.
 
 Neither mode needs a `nix-daemon`. The agent links Nix as a library, and for effects it spawns its own `hercules-ci-nix-daemon` proxy rather than using a host socket.
@@ -60,18 +64,6 @@ docker run \
   ghcr.io/unmango/hercules-ci-agent:0.10.8
 ```
 
-<<<<<<< HEAD
-`--config /etc/hercules-ci-agent/agent.json` is the default `Cmd`; no config is baked in, so mount one there or pass `--config` yourself.
-JSON rather than TOML, because TOML cannot express `null` in `labels` and silently drops subtables.
-The config supplies `baseDirectory`, and the operator installs `cluster-join-token.key` and `binary-caches.json` under its `secrets` directory.
-Leave `baseDirectory` at `/var/lib/hercules-ci-agent` or mount the volume at whatever path you set it to.
-The agent writes work directories and `secretState/session.key` under `baseDirectory` and nowhere else, so a mismatch leaves that state on the container's writable layer, where it is lost on the next `docker run`.
-
-The image runs as uid 1000, which must own the state volume.
-Root is not an option: the agent refuses to host an effect as root.
-The image ships `/var/lib/hercules-ci-agent` and `/tmp` owned by uid 1000, so Docker seeds a fresh named volume with that ownership.
-A bind mount keeps the host directory's ownership instead, so `chown 1000:1000` it first.
-=======
 #### Standalone
 
 Carries a registered store, so there is no `/nix` mount:
@@ -85,10 +77,10 @@ docker run \
 
 Set `nixUserIsTrusted = true` in the config: there is no daemon to refuse anything, and it saves materializing a full `.drv` closure on every build.
 
-The store lives in the container's writable layer and is discarded with the container.
-Mount a volume at `/nix` to keep it, accepting that the runtime seeds the volume from the image on first use.
+The shipped store and its Nix database are image layers, so removing a container discards only what a build added on top of them.
+Mount a named volume at `/nix` to keep those additions: Docker copies the image's `/nix` into an empty named volume the first time it is mounted, so the shipped store is still there.
+A bind mount, or `volume-nocopy`, skips that seeding and masks the store instead.
 Nothing garbage-collects it either, because the agent registers no GC roots, so `nix` is on `PATH` for `nix store gc`.
->>>>>>> 0b0b8e0 (feat(ci): add variant support for sharing image repositories)
 
 ## Development
 

@@ -11,7 +11,9 @@
 # talking to a daemon, and because it spawns its own `hercules-ci-nix-daemon`
 # proxy to back the effect sandbox.
 #
-# The store lives in the container's writable layer and is therefore ephemeral.
+# The shipped store and its database are image layers, so they survive container
+# removal. Paths a build adds at runtime land in the container's writable layer
+# and go with it.
 # Published as `hercules-ci-agent:<version>-standalone`.
 #
 # See ./default.nix for the mode that uses the host's store, and ./common.nix
