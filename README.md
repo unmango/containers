@@ -14,7 +14,7 @@ This repository is only for wrapping software someone else wrote.
 | `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus `nix`, `make` and `xz` |
 | `coredns`             | [CoreDNS][]                                                             |
 | `gitlab-operator-v2`  | [GitLab Operator][]                                                     |
-| `hercules-ci-agent`   | [Hercules CI agent][]                                                   |
+| `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store |
 | `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`              |
 
 ## Usage
@@ -27,10 +27,30 @@ docker pull docker.io/unstoppablemango/coredns:1.14.6
 Tags are the wrapped application's version, plus `latest` and `sha-<short>` on `main`.
 Pin by digest if you need immutability: a version tag is republished when the Nix closure underneath it changes.
 
+Some images publish variants, which share a repository and differ by a tag suffix: `<version>-<variant>`, plus `<variant>` in place of `latest`.
+Swapping between them is a tag change.
+
 ### `hercules-ci-agent`
 
-The agent links Nix as a library rather than shelling out to it, so it is a Nix client and not a self-contained builder.
-It needs the host's store and a reachable `nix-daemon`, an agent config, and a state directory.
+Two modes, same repository:
+
+| Tag                 | Nix store                     |
+| ------------------- | ----------------------------- |
+| `0.10.8`, `latest`  | the host's, mounted at `/nix` |
+| `0.10.8-standalone` | shipped in the image          |
+
+Both take their config the same way.
+`--config /etc/hercules-ci-agent/agent.json` is the default `Cmd`; no config is baked in, so mount one there or pass `--config` yourself.
+JSON rather than TOML, because TOML cannot express `null` in `labels` and silently drops subtables.
+The config supplies `baseDirectory`, and the operator installs `cluster-join-token.key` and `binary-caches.json` under its `secrets` directory.
+
+Both run as uid 1000, which must own the state volume.
+Root is not an option: the agent refuses to host an effect as root.
+Effects additionally need working unprivileged user namespaces for `crun`; upstream reports they work under Podman but not under systemd-nspawn.
+
+Neither mode needs a `nix-daemon`. The agent links Nix as a library, and for effects it spawns its own `hercules-ci-nix-daemon` proxy rather than using a host socket.
+
+#### Host store
 
 ```sh
 docker run \
@@ -40,6 +60,7 @@ docker run \
   ghcr.io/unmango/hercules-ci-agent:0.10.8
 ```
 
+<<<<<<< HEAD
 `--config /etc/hercules-ci-agent/agent.json` is the default `Cmd`; no config is baked in, so mount one there or pass `--config` yourself.
 JSON rather than TOML, because TOML cannot express `null` in `labels` and silently drops subtables.
 The config supplies `baseDirectory`, and the operator installs `cluster-join-token.key` and `binary-caches.json` under its `secrets` directory.
@@ -50,6 +71,24 @@ The image runs as uid 1000, which must own the state volume.
 Root is not an option: the agent refuses to host an effect as root.
 The image ships `/var/lib/hercules-ci-agent` and `/tmp` owned by uid 1000, so Docker seeds a fresh named volume with that ownership.
 A bind mount keeps the host directory's ownership instead, so `chown 1000:1000` it first.
+=======
+#### Standalone
+
+Carries a registered store, so there is no `/nix` mount:
+
+```sh
+docker run \
+  -v ./agent.json:/etc/hercules-ci-agent/agent.json:ro \
+  -v hercules-state:/var/lib/hercules-ci-agent \
+  ghcr.io/unmango/hercules-ci-agent:0.10.8-standalone
+```
+
+Set `nixUserIsTrusted = true` in the config: there is no daemon to refuse anything, and it saves materializing a full `.drv` closure on every build.
+
+The store lives in the container's writable layer and is discarded with the container.
+Mount a volume at `/nix` to keep it, accepting that the runtime seeds the volume from the image on first use.
+Nothing garbage-collects it either, because the agent registers no GC roots, so `nix` is on `PATH` for `nix store gc`.
+>>>>>>> 0b0b8e0 (feat(ci): add variant support for sharing image repositories)
 
 ## Development
 
@@ -70,6 +109,16 @@ make fmt           # nix fmt
 2. Register it in the `images` attrset in `images/default.nix`.
 
 That is the whole cost. CI enumerates `legacyPackages.<system>.imageMeta`, which is derived from the same attrset, so no workflow needs editing.
+
+### Adding a variant
+
+A variant is a second build of the same application that shares its repository and differs by tag, the way `node:22` and `node:22-alpine` do.
+
+1. Pass `variant = "<name>"` to `mkImage`, alongside the same `name` as the plain image. `mkImage` tags it `<version>-<variant>`, and CI publishes `<variant>` as its moving tag instead of `latest`.
+2. Register it under its own key in the `images` attrset. The key is the flake attribute; `name` is the repository, so the two deliberately differ here.
+
+Keep the shared parts in a `common.nix` beside the mode files rather than duplicating them, and open each mode file with a banner naming its mode.
+`images/hercules-ci-agent/` is the worked example: `common.nix` holds everything both modes share, and `default.nix` and `standalone.nix` are short enough to read whole.
 
 ### Building on a base image
 

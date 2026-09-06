@@ -104,21 +104,27 @@ jobs:
       # Guarded on the default branch rather than merely "not a pull request":
       # workflow_dispatch accepts any ref, and publishing from a feature branch
       # would let `index` move `latest` and the version tag onto it.
+      # The repository is `imageName`, not the matrix key, so that variants of
+      # one application can share a repository and be told apart by tag. The key
+      # still names the flake attribute, and it goes in the staging tag because
+      # two variants pushing to one repository would otherwise collide on
+      # `<sha>-<arch>`.
       - name: Push per-arch image
         if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           IMAGE: ${{ matrix.image }}
+          IMAGE_NAME: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].imageName }}
           ARCH: ${{ matrix.arch }}
           GHCR_CREDS: ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}
           HUB_CREDS: ${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           nix run ".#${IMAGE}.copyTo" -- \
             --dest-creds "$GHCR_CREDS" \
-            "docker://${GHCR_NAMESPACE}/${IMAGE}:${GITHUB_SHA}-${ARCH}"
+            "docker://${GHCR_NAMESPACE}/${IMAGE_NAME}:${GITHUB_SHA}-${IMAGE}-${ARCH}"
 
           nix run ".#${IMAGE}.copyTo" -- \
             --dest-creds "$HUB_CREDS" \
-            "docker://${HUB_NAMESPACE}/${IMAGE}:${GITHUB_SHA}-${ARCH}"
+            "docker://${HUB_NAMESPACE}/${IMAGE_NAME}:${GITHUB_SHA}-${IMAGE}-${ARCH}"
 
   index:
     name: index (${{ matrix.image }})
@@ -153,18 +159,27 @@ jobs:
       - name: Assemble multi-arch index
         env:
           IMAGE: ${{ matrix.image }}
-          VERSION: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].version }}
+          IMAGE_NAME: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].imageName }}
+          IMAGE_TAG: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].imageTag }}
+          VARIANT: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].variant }}
         run: |
           short="${GITHUB_SHA::7}"
 
+          # A JSON null interpolates to the empty string, so an image with no
+          # variant keeps `latest` and an unsuffixed sha tag, and each variant
+          # gets its own moving tag instead of fighting over `latest`.
+          # IMAGE_TAG is already "<version>-<variant>", so it is used as-is.
+          suffix="${VARIANT:+-${VARIANT}}"
+          moving="${VARIANT:-latest}"
+
           for ns in "$GHCR_NAMESPACE" "$HUB_NAMESPACE"; do
-            repo="${ns}/${IMAGE}"
+            repo="${ns}/${IMAGE_NAME}"
             docker buildx imagetools create \
-              --tag "${repo}:${VERSION}" \
-              --tag "${repo}:sha-${short}" \
-              --tag "${repo}:latest" \
-              "${repo}:${GITHUB_SHA}-amd64" \
-              "${repo}:${GITHUB_SHA}-arm64"
+              --tag "${repo}:${IMAGE_TAG}" \
+              --tag "${repo}:sha-${short}${suffix}" \
+              --tag "${repo}:${moving}" \
+              "${repo}:${GITHUB_SHA}-${IMAGE}-amd64" \
+              "${repo}:${GITHUB_SHA}-${IMAGE}-arm64"
           done
 
   image:

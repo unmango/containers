@@ -44,18 +44,38 @@ Three surfaces come out of that attrset:
 
 - `packages.<name>` — the images themselves, plus `<name>-archive` for those in `archives`, a `default` link farm of everything, and an `archives` link farm.
   Images are top-level packages rather than `passthru.image` on the wrapped package, because `passthru` hides them from `nix flake show`, from CI enumeration, and from other flakes.
-- `legacyPackages.imageMeta` — `{ imageName, imageTag, version }` per image, the enumeration surface CI reads.
+- `legacyPackages.imageMeta` — `{ imageName, imageTag, version, variant }` per image, the enumeration surface CI reads.
   It is `legacyPackages` because the values are attrsets and `nix flake check` rejects those under `packages`.
+  `imageName` is the published repository, not the attrset key; that separation is what lets variants share a repository.
 - Re-exported `nix2container-bin` and `skopeo-nix2container`, so those exact store paths land in the Cachix cache.
 
 `images/lib/mk-image.nix` wraps `nix2container.buildImage` and pins the OCI tag to `version`.
 nix2container otherwise derives the tag from the output hash, which churns on every unrelated closure change.
 Every image should go through `mkImage`, not `buildImage` directly.
 
+**`copyToRoot` copies an entry's contents to `/` and leaves the entry's own store path out of the image.**
+Two consequences.
+A store path interpolated into `config` (`SSL_CERT_FILE=${cacert}/...`) dangles, resolving only when a host `/nix` happens to be mounted and happens to carry that exact path, so reference the `/etc` path the copy created instead.
+And `initializeNixDatabase` registers the whole closure regardless, so the shipped database claims paths that are not there; pass the same roots through `nix2container.buildLayer { deps = ...; }` to materialize them.
+`images/hercules-ci-agent/common.nix` does both, and `nix-store --verify` inside the image is how to check.
+
 `images/lib/mk-archive.nix` converts an image into a docker-archive tarball for consumers that need a loadable file (NixOS' `seedDockerImages` cats the store path into `ctr image import`).
 Archives are built but never published, which is why CI builds them from the `archives` aggregate rather than the image matrix.
 
 Per-image files live in `images/<name>/default.nix` and take their dependencies as function arguments; `callPackage` is scoped to `pkgs` plus `mkImage`, the nix2container packages, and packages from the `unmango/pkgs` input.
+That scope applies only to the outermost call: the `callPackage` an image file receives is plain `pkgs.callPackage`, so a file that calls a sibling has to pass `mkImage` and `nix2container` explicitly.
+
+### Variants
+
+Two builds of one application share a repository and differ by tag, the way `node:22` and `node:22-alpine` do.
+`mkImage` takes `variant`, which suffixes the tag to `<version>-<variant>` and leaves `meta.version` as the plain upstream version, because that is what Renovate and consumers read.
+CI publishes `<variant>` as the moving tag where an unvaried image publishes `latest`, so they never fight over it.
+
+The published repository is `imageMeta.imageName`, not the attrset key.
+Two variants therefore need distinct keys but the same `name`.
+The key also goes into the per-arch staging tag (`<sha>-<key>-<arch>`), which is what keeps two variants from colliding while they wait for `index`.
+
+Shared parts belong in a `common.nix` beside the mode files, with each mode file opening on a banner comment naming its mode; `images/hercules-ci-agent/` is the worked example.
 
 ### Base images
 
