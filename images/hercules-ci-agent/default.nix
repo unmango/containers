@@ -2,6 +2,7 @@
   cacert,
   hercules-ci-agent,
   mkImage,
+  runCommand,
   writeTextDir,
 }:
 let
@@ -30,6 +31,15 @@ let
     root:x:0:
     hercules-ci-agent:x:${toString gid}:
   '';
+
+  # Both are declared as volumes below, and Docker seeds a fresh named volume
+  # from the image's mount point, ownership included. A scratch image that does
+  # not carry these leaves Docker to create them root-owned, which the uid 1000
+  # agent cannot write. `perms` supplies the ownership, since store paths are
+  # always root.
+  dirs = runCommand "hercules-ci-agent-dirs" { } ''
+    mkdir -p $out/tmp $out${baseDirectory}
+  '';
 in
 mkImage {
   name = "hercules-ci-agent";
@@ -37,9 +47,36 @@ mkImage {
 
   copyToRoot = [
     cacert
+    dirs
     group
     nixConf
     passwd
+  ];
+
+  # Matched against the source store path, so the trailing anchor is enough to
+  # pick out each directory. The intermediate /var and /var/lib stay root-owned
+  # 0755, which is what a distribution ships.
+  perms = [
+    {
+      path = dirs;
+      regex = "/tmp$";
+      mode = "1777";
+      inherit uid gid;
+      # nix2container defaults these to "root" independently of uid/gid. Only
+      # the numeric ids are extracted, but a tar listing shows the names.
+      uname = "hercules-ci-agent";
+      gname = "hercules-ci-agent";
+    }
+    {
+      path = dirs;
+      regex = "${baseDirectory}$";
+      mode = "0755";
+      inherit uid gid;
+      # nix2container defaults these to "root" independently of uid/gid. Only
+      # the numeric ids are extracted, but a tar listing shows the names.
+      uname = "hercules-ci-agent";
+      gname = "hercules-ci-agent";
+    }
   ];
 
   config = {
@@ -55,7 +92,7 @@ mkImage {
       # home at baseDirectory for the same reasons.
       "HOME=${baseDirectory}"
       # Source tarballs are unpacked with `tar -xz`, which needs somewhere to
-      # write. Nothing creates /tmp in a scratch image, hence the volume below.
+      # write. A scratch image has no /tmp, so `dirs` above creates one.
       "TMPDIR=/tmp"
       # Outbound HTTPS to hercules-ci.com, its socket endpoints, cachix.org and
       # github.com. Both names are set because the agent's own HTTP client reads
