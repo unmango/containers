@@ -81,13 +81,27 @@ Its `/usr/local/bin` holds statically linked binaries rather than the usual syml
 Nix's default `auto` store abandons `/nix` for a chroot store under `$HOME` whenever `/nix/var/nix` is missing, which is the state of every empty volume, and it does so with a warning rather than an error.
 Naming the local store makes nix create that layout under `/nix` instead.
 
-Nothing has to prepare the volume: an empty one is enough, and the runner user, uid and gid 1001, needs to be able to write to it.
+Nothing prepares the volume: nix creates `store`, `var` and its build directory itself, with its own modes rather than the volume's, so an empty one is enough.
+The only requirement is that the runner user, uid and gid 1001, can write to it.
+
+Under [Actions Runner Controller][arc] that is an `emptyDir`, which kubelet creates mode `0777`, and no `fsGroup` or initContainer:
 
 ```yaml
-volumeMounts:
-  - name: nix
-    mountPath: /nix
+template:
+  spec:
+    containers:
+      - name: runner
+        image: ghcr.io/unmango/actions-runner:2.337.0
+        command: [/home/runner/run.sh]
+        volumeMounts:
+          - name: nix
+            mountPath: /nix
+    volumes:
+      - name: nix
+        emptyDir: {}
 ```
+
+A PVC works too and holds the store across jobs, but arrives owned by root, so it needs `template.spec.securityContext.fsGroup: 1001` to be writable.
 
 With no mount, nix creates `/nix` on the container filesystem and the store is discarded with the container.
 That is the right shape for a throwaway runner and the wrong one for a real workload: a store on an overlayfs cannot tear down a build directory it has just emptied, failing with `cannot unlink ...: Directory not empty`, which derivations that write many small files hit reliably.
@@ -202,6 +216,7 @@ Every commit type with a visible changelog section in `release-please-config.jso
 Renovate's Nix and base image bumps are committed as `deps:` for this reason, while its GitHub Action pins stay `chore(deps)`.
 Never hand-edit `version.txt` or `CHANGELOG.md`.
 
+[arc]: https://github.com/actions/actions-runner-controller
 [nix2container]: https://github.com/nlewo/nix2container
 [release-please]: https://github.com/googleapis/release-please
 [runner]: https://github.com/actions/runner
