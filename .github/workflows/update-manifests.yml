@@ -17,7 +17,7 @@ jobs:
     steps:
       # This job commits and pushes, so it is the one checkout that has to
       # keep its credentials.
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # zizmor: ignore[artipacked]
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
         with:
           # A PAT rather than GITHUB_TOKEN: pushes made with GITHUB_TOKEN do not
           # re-trigger workflows, so CI would never run against the regenerated
