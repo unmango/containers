@@ -13,9 +13,11 @@ build-%:
 load-%:
 	nix run .#$*.copyToDockerDaemon
 
+# The repository comes from imageName rather than the stem, so variants of one
+# application share a repository and differ only by tag.
 push-%:
 	nix run .#$*.copyTo -- \
-		"docker://$(REGISTRY)/$*:$(shell nix eval --raw '$(META).$*.imageTag')"
+		"docker://$(REGISTRY)/$(shell nix eval --raw '$(META).$*.imageName'):$(shell nix eval --raw '$(META).$*.imageTag')"
 
 manifests: $(IMAGES:%=manifest-%)
 

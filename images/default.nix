@@ -29,6 +29,7 @@
         coredns = callPackage ./coredns { };
         gitlab-operator-v2 = callPackage ./gitlab-operator-v2 { };
         hercules-ci-agent = callPackage ./hercules-ci-agent { };
+        hercules-ci-agent-standalone = callPackage ./hercules-ci-agent/standalone.nix { };
         wireguard-cni-tools = callPackage ./wireguard-cni-tools { };
       };
 
@@ -67,10 +68,14 @@
       # The enumeration surface CI reads, so adding an image needs no workflow
       # edit. Not `packages`, because these values are attrsets rather than
       # derivations and `nix flake check` rejects those.
+      #
+      # `imageName` is the published repository and `imageTag` the version tag.
+      # They come from here rather than from the attrset key so that variants of
+      # one application, whose keys must differ, can still share a repository.
       legacyPackages.imageMeta = lib.optionalAttrs isLinux (
         lib.mapAttrs (_: img: {
           inherit (img) imageName imageTag;
-          inherit (img.meta) version;
+          inherit (img.meta) version variant;
         }) images
       );
     };
