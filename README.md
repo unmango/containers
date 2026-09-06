@@ -114,12 +114,12 @@ Keep the shared parts in a `common.nix` beside the mode files rather than duplic
 
 ### Building on a base image
 
-Add an `images/<name>/base.nix` holding the registry coordinates, then run `make manifest-<name>` to pin the base image's per-architecture manifests and configs.
+Add an `images/<name>/base.nix` holding the registry coordinates, then run `make manifest-<name>` to pin the base image's per-architecture manifests and its config.
 
 Two things to know:
 
 - `pullImageFromManifest` takes a single-architecture manifest, not a multi-arch index, so each system pins its own file.
-- **nix2container replaces the base image's config rather than merging into it.** Anything not restated in your `config` is lost, including `PATH`. This is why the base config is pinned too and inherited explicitly. See `images/actions-runner/default.nix`.
+- **nix2container replaces the base image's config rather than merging into it.** Anything not restated in your `config` is lost, including `PATH`. This is why the base config is pinned too, as one `config.json` shared by every system, and inherited explicitly. See `images/actions-runner/default.nix`.
 
 A third trap, if you add tools on top of a base image: link them into `/usr/local` with `buildEnv`'s `extraPrefix`, never into `/`.
 A layer containing a real `./bin` directory replaces the base image's `/bin -> usr/bin` symlink and hides everything the base image resolves through it.

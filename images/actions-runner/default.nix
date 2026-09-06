@@ -15,27 +15,14 @@ let
 
   # pullImageFromManifest consumes a single-architecture manifest, but
   # ghcr.io/actions/actions-runner publishes a multi-arch index, so each system
-  # pins its own. Regenerate both files with `make manifest-actions-runner`.
-  manifests = {
-    x86_64-linux = ./manifest-x86_64-linux.json;
-    aarch64-linux = ./manifest-aarch64-linux.json;
-  };
-
-  configs = {
-    x86_64-linux = ./config-x86_64-linux.json;
-    aarch64-linux = ./config-aarch64-linux.json;
-  };
-
-  imageManifest =
-    manifests.${system} or (throw "actions-runner: no pinned base manifest for ${system}");
+  # pins its own. Regenerate the pins with `make manifest-actions-runner`.
+  imageManifest = ./. + "/manifest-${system}.json";
 
   # nix2container REPLACES the base image's config rather than merging into it,
   # so anything not restated here is lost. Dropping the base PATH alone breaks
-  # every tool the runner shells out to.
-  baseConfig =
-    (lib.importJSON (
-      configs.${system} or (throw "actions-runner: no pinned base config for ${system}")
-    )).config;
+  # every tool the runner shells out to. The config is the same for every
+  # architecture, which the update script checks, so one pin serves both.
+  baseConfig = lib.importJSON ./config.json;
 
   # Link into /usr/local, not /. A layer containing a real ./bin directory
   # replaces the base image's `/bin -> usr/bin` symlink and hides everything the

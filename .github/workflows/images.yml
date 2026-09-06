@@ -27,7 +27,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       images: ${{ steps.list.outputs.images }}
-      meta: ${{ steps.list.outputs.meta }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,24 +34,18 @@ jobs:
           # build expressions from the branch under review.
           persist-credentials: false
 
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          extra_nix_config: |
-            accept-flake-config = true
+      - uses: ./.github/actions/setup
 
       # Reads the same attrset the packages are built from, so adding an image
-      # needs no edit to this workflow.
+      # needs no edit to this workflow. Each entry carries its attrset key plus
+      # its imageMeta, so the matrix legs read `matrix.image.<field>` directly.
       - id: list
         run: |
-          meta="$(nix eval --json '.#legacyPackages.x86_64-linux.imageMeta')"
-          {
-            echo "images=$(jq -c 'keys' <<<"$meta")"
-            echo "meta=$(jq -c . <<<"$meta")"
-          } >>"$GITHUB_OUTPUT"
+          nix eval --json '.#legacyPackages.x86_64-linux.imageMeta' \
+            | jq -c 'to_entries | map({ key } + .value) | "images=\(.)"' -r >>"$GITHUB_OUTPUT"
 
   publish:
-    name: image (${{ matrix.image }}, ${{ matrix.arch }})
+    name: image (${{ matrix.image.key }}, ${{ matrix.arch }})
     needs: [enumerate]
     strategy:
       fail-fast: false
@@ -75,27 +68,16 @@ jobs:
           # build expressions from the branch under review.
           persist-credentials: false
 
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: ./.github/actions/setup
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          extra_nix_config: |
-            # Trigger Nix GC on GitHub-hosted runners when < 3GiB free; keep up to 10GiB free.
-            min-free = 3221225472
-            max-free = 10737418240
-            # Trust the substituter/key the flake declares via nixConfig.
-            accept-flake-config = true
-
-      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
-        with:
-          name: unstoppablemango
-          extraPullNames: mangopkgs,unmango
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          cachix-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          gc: true
 
       # Through the environment rather than interpolated into the script: the
       # image names come from the branch's own flake, so a pull request could
       # otherwise choose what this shell runs.
       - env:
-          IMAGE: ${{ matrix.image }}
+          IMAGE: ${{ matrix.image.key }}
         run: nix build ".#${IMAGE}"
 
       # skopeo's `nix:` transport reads layer blobs out of the local store, so
@@ -113,8 +95,8 @@ jobs:
       - name: Push per-arch image
         if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
-          IMAGE: ${{ matrix.image }}
-          IMAGE_NAME: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].imageName }}
+          IMAGE: ${{ matrix.image.key }}
+          IMAGE_NAME: ${{ matrix.image.imageName }}
           ARCH: ${{ matrix.arch }}
           GHCR_CREDS: ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}
           HUB_CREDS: ${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}
@@ -128,7 +110,7 @@ jobs:
             "docker://${HUB_NAMESPACE}/${IMAGE_NAME}:${GITHUB_SHA}-${IMAGE}-${ARCH}"
 
   index:
-    name: index (${{ matrix.image }})
+    name: index (${{ matrix.image.key }})
     needs: [enumerate, publish]
     # Matches the push step's guard: these are the tags consumers pull, so they
     # only ever move for the default branch.
@@ -159,10 +141,10 @@ jobs:
       # from the per-arch tags already pushed to each registry.
       - name: Assemble multi-arch index
         env:
-          IMAGE: ${{ matrix.image }}
-          IMAGE_NAME: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].imageName }}
-          IMAGE_TAG: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].imageTag }}
-          VARIANT: ${{ fromJSON(needs.enumerate.outputs.meta)[matrix.image].variant }}
+          IMAGE: ${{ matrix.image.key }}
+          IMAGE_NAME: ${{ matrix.image.imageName }}
+          IMAGE_TAG: ${{ matrix.image.imageTag }}
+          VARIANT: ${{ matrix.image.variant }}
         run: |
           short="${GITHUB_SHA::7}"
 
