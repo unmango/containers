@@ -4,9 +4,13 @@
   nixConfig = {
     extra-substituters = [
       "https://unstoppablemango.cachix.org"
+      "https://mangopkgs.cachix.org"
+      "https://unmango.cachix.org"
     ];
     extra-trusted-public-keys = [
       "unstoppablemango.cachix.org-1:m7uEI6X1Ov8DyFWJQX4WsRFRWFuzRW5c/Xms8ZaP74U="
+      "mangopkgs.cachix.org-1:uJ5FgSbOg1uiXLcL0gBh1lO+y3KVuthy6UeOFYR1fLk="
+      "unmango.cachix.org-1:Psb+0nALJfIcYiZLc9JYri4FJGNnzM6goZX7iLErXCI="
     ];
   };
 
