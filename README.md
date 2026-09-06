@@ -9,13 +9,13 @@ This repository is only for wrapping software someone else wrote.
 
 ## Images
 
-| Image                 | Wraps                                                                   |
-| --------------------- | ----------------------------------------------------------------------- |
-| `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus `nix`, `make` and `xz` |
-| `coredns`             | [CoreDNS][]                                                             |
-| `gitlab-operator-v2`  | [GitLab Operator][]                                                     |
-| `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store |
-| `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`              |
+| Image                 | Wraps                                                                          |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus static `nix`, `make` and `xz` |
+| `coredns`             | [CoreDNS][]                                                                    |
+| `gitlab-operator-v2`  | [GitLab Operator][]                                                            |
+| `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store        |
+| `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`                     |
 
 ## Usage
 
@@ -73,6 +73,24 @@ env:
 
 Use the `extra-` forms there.
 A plain assignment replaces the image's value rather than adding to it.
+
+The image ships nothing under `/nix` and brings no store of its own.
+Its `/usr/local/bin` holds statically linked binaries rather than the usual symlinks into the store, so mounting anything at `/nix` is a supported thing to do rather than something that hides the tools.
+
+`/etc/nix/nix.conf` sets `store = local` to make that work.
+Nix's default `auto` store abandons `/nix` for a chroot store under `$HOME` whenever `/nix/var/nix` is missing, which is the state of every empty volume, and it does so with a warning rather than an error.
+Naming the local store makes nix create that layout under `/nix` instead.
+
+Nothing has to prepare the volume: an empty one is enough, and the runner user, uid and gid 1001, needs to be able to write to it.
+
+```yaml
+volumeMounts:
+  - name: nix
+    mountPath: /nix
+```
+
+With no mount, nix creates `/nix` on the container filesystem and the store is discarded with the container.
+That is the right shape for a throwaway runner and the wrong one for a real workload: a store on an overlayfs cannot tear down a build directory it has just emptied, failing with `cannot unlink ...: Directory not empty`, which derivations that write many small files hit reliably.
 
 ### `hercules-ci-agent`
 

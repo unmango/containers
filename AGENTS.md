@@ -89,9 +89,14 @@ Three traps, all of which `images/actions-runner/` demonstrates:
 2. **nix2container replaces the base image's config rather than merging into it.** Anything not restated in `config` is lost, `PATH` included. This is why the base config is pinned and inherited explicitly. One `config.json` serves every system; the script fails if the architectures disagree.
 3. Link added tools into `/usr/local` with `buildEnv`'s `extraPrefix`, never into `/`. A layer with a real `./bin` directory replaces the base image's `/bin -> usr/bin` symlink and hides everything resolved through it.
 
-An image that ships `nix` itself needs `initializeNixDatabase = true`, which registers the store paths the image carries so nix sees a store rather than a pile of unknown files.
+An image that ships a store of its own needs `initializeNixDatabase = true`, which registers the store paths it carries so nix sees a store rather than a pile of unknown files.
 Set `nixUid`/`nixGid` alongside it: nix2container applies mode `0755` and those ids to the whole database path, so unlike `dockerTools`' `includeNixDB`, which writes `db.sqlite` 0600 root, no chmod pass is needed afterwards.
-`images/actions-runner/` uses this, with the base image's runner user.
+`images/hercules-ci-agent/common.nix` uses this for its standalone mode.
+
+`images/actions-runner/` takes the opposite approach, shipping nothing under `/nix` so that a consumer can mount a writable volume there, which is what a store on an overlayfs is worth avoiding for.
+Two things follow, and both are the point rather than incidental.
+Its tools are `pkgsStatic` builds copied into `/usr/local` as real files with `nuke-refs` run over them, because `buildEnv`'s `extraPrefix` would leave symlinks into a `/nix` the mount hides, and because a copied binary keeps its original's store paths as strings, which is enough for nix2container to ship 470MB of closure into a `/nix` nothing reads.
+And its `nix.conf` sets `store = local`, because the default `auto` store abandons `/nix` for a chroot store under `$HOME` when `/nix/var/nix` is absent, which is every empty volume, and only warns about it.
 
 An image that ships `nix` also has to put the user profile's bin directory on `PATH` itself.
 `cachix/install-nix-action` normally does that on its last line, but on such an image it finds nix already present, prints `Aborting: Nix is already installed` and exits reporting success, so the line never runs.
