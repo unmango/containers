@@ -17,6 +17,10 @@ version="$(jq -r '.version' <<<"${base}")"
 
 tagref="docker://${registry}/${image}:${version}"
 raw="$(skopeo inspect --raw "${tagref}")"
+# A plain manifest has no per-architecture entries to pin by, so it is pinned
+# by its own digest instead. Every inspection below then names immutable bytes,
+# even if the tag moves partway through.
+tag_digest="$(skopeo inspect --format '{{.Digest}}' "${tagref}")"
 pinned=""
 
 for pair in 'x86_64-linux amd64' 'aarch64-linux arm64'; do
@@ -24,13 +28,12 @@ for pair in 'x86_64-linux amd64' 'aarch64-linux arm64'; do
   out="${dir}/manifest-${system}.json"
 
   # An index yields the digest of its linux/<arch> entry. A plain manifest
-  # yields nothing, so the tag itself is inspected and the architecture check
+  # yields nothing, so it is inspected as a whole and the architecture check
   # below decides whether it is this one.
   digest="$(jq -r --arg a "${arch}" \
     '.manifests[]? | select(.platform.os == "linux" and .platform.architecture == $a) | .digest' \
     <<<"${raw}")"
-  ref="${tagref}"
-  [ -n "${digest}" ] && ref="docker://${registry}/${image}@${digest}"
+  ref="docker://${registry}/${image}@${digest:-${tag_digest}}"
 
   manifest="$(skopeo inspect --raw "${ref}")"
   config="$(skopeo inspect --config "${ref}")"
