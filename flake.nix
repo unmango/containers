@@ -87,7 +87,7 @@
             # against prettier's output rather than the script's.
             settings.global.excludes = [
               "images/*/manifest-*.json"
-              "images/*/config-*.json"
+              "images/*/config.json"
             ];
           };
         };

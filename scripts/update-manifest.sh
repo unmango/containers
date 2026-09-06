@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate the pinned per-architecture base image manifests for one image.
+# Regenerate the pinned base image manifests and config for one image.
 #
 # nix2container's pullImageFromManifest takes a single-architecture manifest,
 # not a multi-arch index, so each system needs its own pinned file. Renovate
@@ -10,45 +10,32 @@ set -euo pipefail
 name="${1:?usage: update-manifest.sh <image>}"
 dir="images/${name}"
 
-if [ ! -f "${dir}/base.nix" ]; then
-  echo "${name}: no base.nix, nothing to pin" >&2
-  exit 0
-fi
-
 base="$(nix eval --json --file "${dir}/base.nix")"
 registry="$(jq -r '.registryUrl' <<<"${base}")"
 image="$(jq -r '.imageName' <<<"${base}")"
 version="$(jq -r '.version' <<<"${base}")"
 
-raw="$(skopeo inspect --raw "docker://${registry}/${image}:${version}")"
+tagref="docker://${registry}/${image}:${version}"
+raw="$(skopeo inspect --raw "${tagref}")"
+# A plain manifest has no per-architecture entries to pin by, so it is pinned
+# by its own digest instead. Every inspection below then names immutable bytes,
+# even if the tag moves partway through.
+tag_digest="$(skopeo inspect --format '{{.Digest}}' "${tagref}")"
+pinned=""
 
 for pair in 'x86_64-linux amd64' 'aarch64-linux arm64'; do
   read -r system arch <<<"${pair}"
   out="${dir}/manifest-${system}.json"
-  cfg="${dir}/config-${system}.json"
-  ref="docker://${registry}/${image}:${version}"
 
-  if jq -e 'has("manifests")' >/dev/null <<<"${raw}"; then
-    digest="$(jq -r --arg a "${arch}" \
-      '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $a) | .digest' \
-      <<<"${raw}")"
+  # An index yields the digest of its linux/<arch> entry. A plain manifest
+  # yields nothing, so it is inspected as a whole and the architecture check
+  # below decides whether it is this one.
+  digest="$(jq -r --arg a "${arch}" \
+    '.manifests[]? | select(.platform.os == "linux" and .platform.architecture == $a) | .digest' \
+    <<<"${raw}")"
+  ref="docker://${registry}/${image}@${digest:-${tag_digest}}"
 
-    if [ -z "${digest}" ]; then
-      echo "${name}: no linux/${arch} manifest in ${image}:${version}" >&2
-      exit 1
-    fi
-
-    ref="docker://${registry}/${image}@${digest}"
-    manifest="$(skopeo inspect --raw "${ref}")"
-  else
-    # Upstream published a plain manifest rather than an index, so it describes
-    # exactly one architecture. The check below decides whether it is this one.
-    manifest="${raw}"
-  fi
-
-  # nix2container replaces the base image's config rather than merging into
-  # it, so the config is pinned too and the derivation inherits from it
-  # explicitly. Without this the image silently loses the base image's PATH.
+  manifest="$(skopeo inspect --raw "${ref}")"
   config="$(skopeo inspect --config "${ref}")"
 
   # pullImageFromManifest trusts whichever manifest it is handed; it does not
@@ -61,8 +48,19 @@ for pair in 'x86_64-linux amd64' 'aarch64-linux arm64'; do
     exit 1
   fi
 
-  printf '%s' "${manifest}" >"${out}"
-  jq --sort-keys . <<<"${config}" >"${cfg}"
+  # nix2container replaces the base image's config rather than merging into
+  # it, so the config is pinned too and the derivation inherits from it
+  # explicitly. One file serves every system, so the architectures must agree.
+  cfg="$(jq --sort-keys '.config' <<<"${config}")"
+  if [ -n "${pinned}" ] && [ "${pinned}" != "${cfg}" ]; then
+    echo "${name}: ${image}:${version} config differs between architectures" >&2
+    exit 1
+  fi
+  pinned="${cfg}"
 
-  echo "${name}: pinned ${system} -> ${out}, ${cfg}"
+  printf '%s' "${manifest}" >"${out}"
+  echo "${name}: pinned ${system} -> ${out}"
 done
+
+printf '%s\n' "${pinned}" >"${dir}/config.json"
+echo "${name}: pinned config -> ${dir}/config.json"

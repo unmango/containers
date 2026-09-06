@@ -19,7 +19,7 @@ push-%:
 	nix run .#$*.copyTo -- \
 		"docker://$(REGISTRY)/$(shell nix eval --raw '$(META).$*.imageName'):$(shell nix eval --raw '$(META).$*.imageTag')"
 
-manifests: $(IMAGES:%=manifest-%)
+manifests: $(patsubst images/%/base.nix,manifest-%,$(wildcard images/*/base.nix))
 
 manifest-%:
 	./scripts/update-manifest.sh $*

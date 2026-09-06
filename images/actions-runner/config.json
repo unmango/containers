@@ -1,0 +1,22 @@
+{
+  "Cmd": [
+    "/bin/bash"
+  ],
+  "Env": [
+    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "APP_UID=1654",
+    "ASPNETCORE_HTTP_PORTS=8080",
+    "DOTNET_RUNNING_IN_CONTAINER=true",
+    "DEBIAN_FRONTEND=noninteractive",
+    "RUNNER_MANUALLY_TRAP_SIG=1",
+    "ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1",
+    "ImageOS=ubuntu24"
+  ],
+  "Labels": {
+    "org.opencontainers.image.licenses": "MIT",
+    "org.opencontainers.image.source": "https://github.com/actions/runner",
+    "org.opencontainers.image.version": "24.04"
+  },
+  "User": "runner",
+  "WorkingDir": "/home/runner"
+}

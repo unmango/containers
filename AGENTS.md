@@ -80,19 +80,20 @@ Shared parts belong in a `common.nix` beside the mode files, with each mode file
 ### Base images
 
 An image built on top of an upstream image adds `images/<name>/base.nix` holding registry coordinates as plain data, so `scripts/update-manifest.sh` can `nix eval --file` it rather than grepping Nix source.
-`make manifest-<name>` writes `manifest-<system>.json` and `config-<system>.json` beside it.
+`make manifest-<name>` writes `manifest-<system>.json` per system and one `config.json` beside it.
+`make manifests` runs it for every directory that has a `base.nix`.
 
 Three traps, all of which `images/actions-runner/` demonstrates:
 
 1. `pullImageFromManifest` takes a single-architecture manifest, not a multi-arch index, so each system pins its own file. It does not verify the platform either, hence the architecture check in the script.
-2. **nix2container replaces the base image's config rather than merging into it.** Anything not restated in `config` is lost, `PATH` included. This is why the base config is pinned and inherited explicitly.
+2. **nix2container replaces the base image's config rather than merging into it.** Anything not restated in `config` is lost, `PATH` included. This is why the base config is pinned and inherited explicitly. One `config.json` serves every system; the script fails if the architectures disagree.
 3. Link added tools into `/usr/local` with `buildEnv`'s `extraPrefix`, never into `/`. A layer with a real `./bin` directory replaces the base image's `/bin -> usr/bin` symlink and hides everything resolved through it.
 
 An image that ships `nix` itself needs `initializeNixDatabase = true`, which registers the store paths the image carries so nix sees a store rather than a pile of unknown files.
 Set `nixUid`/`nixGid` alongside it: nix2container applies mode `0755` and those ids to the whole database path, so unlike `dockerTools`' `includeNixDB`, which writes `db.sqlite` 0600 root, no chmod pass is needed afterwards.
 `images/actions-runner/` uses this, with the base image's runner user.
 
-Pinned manifests and configs are excluded from treefmt: manifests are stored verbatim as the registry served them, configs normalised through `jq --sort-keys`.
+Pinned manifests and configs are excluded from treefmt: manifests are stored verbatim as the registry served them, `config.json` is the `.config` block normalised through `jq --sort-keys`.
 Reformatting them would make CI's drift check compare against prettier's output.
 
 Renovate bumps `version` in `base.nix` but cannot regenerate the pins, so `.github/workflows/update-manifests.yml` runs `make manifests` on `renovate/**` branches and pushes with a PAT (`GITHUB_TOKEN` pushes do not re-trigger workflows).
@@ -102,6 +103,8 @@ CI's `manifests` job fails on drift.
 
 `ci.yml` runs `make check` across x86_64-linux, aarch64-linux, and aarch64-darwin, builds `.#archives` on the Linux legs, and checks manifest drift.
 `images.yml` enumerates `imageMeta`, builds and pushes per-arch `<sha>-<arch>` tags, then assembles the multi-arch index with `docker buildx imagetools create` (skopeo has no index-create verb).
+
+Checkout stays in each job because a local action cannot be referenced before the checkout exists; `.github/actions/setup` holds the Nix install and Cachix steps that follow it.
 
 Both workflows end in a single summary job (`build`, `image`) that fails unless every needed job succeeded, because matrix legs cannot be named as required checks in a ruleset.
 
