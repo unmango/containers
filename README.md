@@ -27,6 +27,26 @@ docker pull docker.io/unstoppablemango/coredns:1.14.6
 Tags are the wrapped application's version, plus `latest` and `sha-<short>` on `main`.
 Pin by digest if you need immutability: a version tag is republished when the Nix closure underneath it changes.
 
+### `hercules-ci-agent`
+
+The agent links Nix as a library rather than shelling out to it, so it is a Nix client and not a self-contained builder.
+It needs the host's store and a reachable `nix-daemon`, an agent config, and a state directory.
+
+```sh
+docker run \
+  -v /nix:/nix \
+  -v ./agent.json:/etc/hercules-ci-agent/agent.json:ro \
+  -v hercules-state:/var/lib/hercules-ci-agent \
+  ghcr.io/unmango/hercules-ci-agent:0.10.8
+```
+
+`--config /etc/hercules-ci-agent/agent.json` is the default `Cmd`; no config is baked in, so mount one there or pass `--config` yourself.
+JSON rather than TOML, because TOML cannot express `null` in `labels` and silently drops subtables.
+The config supplies `baseDirectory`, and the operator installs `cluster-join-token.key` and `binary-caches.json` under its `secrets` directory.
+
+The image runs as uid 1000, which must own the state volume.
+Root is not an option: the agent refuses to host an effect as root.
+
 ## Development
 
 ```sh
