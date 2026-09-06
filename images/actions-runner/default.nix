@@ -88,6 +88,16 @@ mkImage {
   # Unlike dockerTools' includeNixDB, which writes the database 0600 root and
   # needs a chmod pass afterwards, nix2container applies mode 0755 plus these
   # ids to the whole database path.
+  #
+  # The database is built from the closure of `copyToRoot`, but nix2container
+  # rewrites the top-level `copyToRoot` paths to `/` rather than shipping them
+  # in the store. `tools` and `nixConf` are therefore registered without being
+  # present, so `nix-store --verify` reports them and their gcroot symlinks
+  # dangle. Their closures are shipped and nothing references those two paths,
+  # so builds inside the image are unaffected. nlewo/nix2container#194 is the
+  # upstream fix, unmerged. Adding them as `layers` deps is not a workaround:
+  # `buildLayer` skips any store path already belonging to a listed layer, so
+  # `tools` would never reach /usr/local.
   initializeNixDatabase = true;
   nixUid = runnerUid;
   nixGid = runnerGid;
