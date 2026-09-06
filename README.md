@@ -103,6 +103,22 @@ template:
 
 A PVC works too and holds the store across jobs, but arrives owned by root, so it needs `template.spec.securityContext.fsGroup: 1001` to be writable.
 
+Garbage collection goes in `NIX_CONFIG` too, and is off unless asked for.
+A store thrown away with its pod never needs it; one that outlives the pod, a node-local store shared by every runner scheduled there above all, grows until the disk is full.
+`min-free` and `max-free` make nix collect mid-build, whenever free space falls under the first, until the second is available again:
+
+```yaml
+env:
+  - name: NIX_CONFIG
+    value: |
+      min-free = 10737418240
+      max-free = 21474836480
+```
+
+The image cannot pick those numbers, which is why it does not try: they are a fraction of a disk it knows nothing about, and they are wrong outright for an ephemeral store.
+Temporary roots keep a collection from taking paths a running build is using, so concurrent runners sharing one store are fine.
+What it does reclaim is a finished result nothing holds a root on, which is the point, and the reason to leave headroom rather than set `min-free` at the last free byte.
+
 With no mount, nix creates `/nix` on the container filesystem and the store is discarded with the container.
 That is the right shape for a throwaway runner and the wrong one for a real workload: a store on an overlayfs cannot tear down a build directory it has just emptied, failing with `cannot unlink ...: Directory not empty`, which derivations that write many small files hit reliably.
 
