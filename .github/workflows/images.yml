@@ -139,6 +139,10 @@ jobs:
 
       # skopeo has no index-create verb, so buildx assembles the manifest list
       # from the per-arch tags already pushed to each registry.
+      #
+      # The `sha-` tag is also what release.yml retags as
+      # `<version>-<release>` when a release is cut, so it is pushed for every
+      # default-branch commit, not only the ones that end up released.
       - name: Assemble multi-arch index
         env:
           IMAGE: ${{ matrix.image.key }}
