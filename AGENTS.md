@@ -93,6 +93,12 @@ An image that ships `nix` itself needs `initializeNixDatabase = true`, which reg
 Set `nixUid`/`nixGid` alongside it: nix2container applies mode `0755` and those ids to the whole database path, so unlike `dockerTools`' `includeNixDB`, which writes `db.sqlite` 0600 root, no chmod pass is needed afterwards.
 `images/actions-runner/` uses this, with the base image's runner user.
 
+An image that ships `nix` also has to put the user profile's bin directory on `PATH` itself.
+`cachix/install-nix-action` normally does that on its last line, but on such an image it finds nix already present, prints `Aborting: Nix is already installed` and exits reporting success, so the line never runs.
+`cachix/cachix-action` is what notices: it installs `cachix` with `nix-env -i`, which lands in `~/.nix-profile/bin`, then resolves the name on `PATH` and fails with `not found: cachix`.
+`images/actions-runner/default.nix` rewrites the base image's `PATH` entry rather than appending a second one, since runtimes disagree about which of two wins, and appends rather than prepends so a package installed into the profile cannot shadow the tools in `/usr/local/bin`.
+The same abort discards the action's `extra_nix_config`, which is why consumers pass per-deployment settings as `NIX_CONFIG` instead.
+
 Pinned manifests and configs are excluded from treefmt: manifests are stored verbatim as the registry served them, `config.json` is the `.config` block normalised through `jq --sort-keys`.
 Reformatting them would make CI's drift check compare against prettier's output.
 

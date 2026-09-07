@@ -30,6 +30,27 @@ Pin by digest if you need immutability: a version tag is republished when the Ni
 Some images publish variants, which share a repository and differ by a tag suffix: `<version>-<variant>`, plus `<variant>` in place of `latest`.
 Swapping between them is a tag change.
 
+### `actions-runner`
+
+Adds `nix`, `make` and `xz` to the upstream runner image, so a workflow needs no `cachix/install-nix-action` step.
+
+Keeping the step is supported, and is the reason `PATH` carries `~/.nix-profile/bin`.
+`install-nix-action` finds nix already on `PATH`, prints `Aborting: Nix is already installed`, and exits reporting success, which skips the line where it would have added that directory itself.
+Anything a job installs with `nix-env -i` lands there, `cachix/cachix-action` among them, so without it that action installs `cachix` and then fails to find it.
+
+Because the step aborts, its `extra_nix_config` input is ignored.
+Per-deployment settings, a substituter above all, arrive as `NIX_CONFIG`, which nix merges on top of `/etc/nix/nix.conf`:
+
+```yaml
+env:
+  NIX_CONFIG: |
+    extra-substituters = https://cache.example.com
+    extra-trusted-public-keys = cache.example.com:...
+```
+
+Use the `extra-` forms there.
+A plain assignment replaces the image's value rather than adding to it.
+
 ### `hercules-ci-agent`
 
 Two modes, same repository:
