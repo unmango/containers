@@ -48,6 +48,37 @@ let
     sandbox = false
   '';
 
+  # cachix/install-nix-action ends by appending the user profile's bin directory
+  # to $GITHUB_PATH. It never reaches that line on this image: it finds nix at
+  # /usr/local/bin, prints "Aborting: Nix is already installed" and exits
+  # reporting success, so anything a job installs with `nix-env -i` lands in a
+  # directory nothing looks in. cachix/cachix-action is what notices, since it
+  # installs cachix and then resolves the name on PATH.
+  #
+  # Appended rather than prepended, so a package installed into the profile
+  # cannot shadow the tools in /usr/local/bin this image exists to provide.
+  # install-nix-action prepends, through $GITHUB_PATH, but it is not the one
+  # carrying those tools.
+  #
+  # ~/.nix-profile is where nix keeps the default profile unless
+  # use-xdg-base-directories is set, which nothing here sets. The XDG location
+  # follows it so a job that does set it still resolves.
+  nixProfileBins = [
+    "/home/runner/.nix-profile/bin"
+    "/home/runner/.local/state/nix/profile/bin"
+  ];
+
+  # OCI Env is a list of KEY=VALUE and runtimes disagree about which of two
+  # PATH= entries wins, so the base image's entry is rewritten rather than
+  # shadowed by a second one.
+  envWithNixProfile = map (
+    entry:
+    if lib.hasPrefix "PATH=" entry then
+      lib.concatStringsSep ":" ([ entry ] ++ nixProfileBins)
+    else
+      entry
+  ) baseConfig.Env;
+
   # The base image's runner user, which owns the nix database so it can build
   # in the store this image ships.
   runnerUid = 1001;
@@ -94,7 +125,7 @@ mkImage {
     # lowercase `user`/`entrypoint`, which runtimes silently ignore.
     User = "runner";
     WorkingDir = "/home/runner";
-    Env = baseConfig.Env ++ [
+    Env = envWithNixProfile ++ [
       # cachix/cachix-action reads $USER, which the base image does not set.
       "USER=runner"
       # The base image is Ubuntu, so nix reaches substituters through its CA
