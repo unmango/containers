@@ -86,6 +86,7 @@
             # Reformatting them here would make the CI drift check compare
             # against prettier's output rather than the script's.
             settings.global.excludes = [
+              "CHANGELOG.md"
               "images/*/manifest-*.json"
               "images/*/config.json"
             ];
