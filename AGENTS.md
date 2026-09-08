@@ -127,7 +127,8 @@ Release-please skips a release when every commit since the last one sits in a hi
 `release.yml` runs on `workflow_run` after a successful Images run for a push to `main`, so a release is only cut for a commit whose images are published.
 It runs release-please with a PAT (`RELEASE_PLEASE_TOKEN`), because a release PR opened with `GITHUB_TOKEN` triggers no workflows and could never pass the required checks.
 When a release is created it re-enumerates `imageMeta` at the released commit and retags `sha-<short>` as `<version>-<release>` with `imagetools create`; nothing is rebuilt.
-The source is the digest `sha-<short>` resolves to rather than the tag, so both registries receive the same index, and the step refuses to move a release tag that already points at a different digest, which is what lets the README describe that tag as written once.
+The source is the digest `sha-<short>` resolves to rather than the tag, so a re-run cannot pick up different content, and the step refuses to move a release tag that already points at a different digest, which is what lets the README describe that tag as written once.
+Each registry resolves its own `sha-<short>`, so the two holding the same index follows from Images pushing identical content to both, not from anything the retag checks.
 
 Checkout stays in each job because a local action cannot be referenced before the checkout exists; `.github/actions/setup` holds the Nix install and Cachix steps that follow it.
 

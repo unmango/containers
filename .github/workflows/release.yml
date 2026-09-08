@@ -9,9 +9,12 @@ name: Release
 # `sha-<short>` images with the release version. Nothing is rebuilt.
 #
 # release-please releases whatever is at the head of `main`, which is not
-# necessarily the commit whose Images run triggered this workflow. If a later
-# push landed first, `tag` fails on a missing `sha-` tag; re-run `tag` once the
-# Images run for that commit has finished.
+# necessarily the commit whose Images run triggered this workflow. When a later
+# push has already landed, the release is cut for that newer commit while its
+# own Images run is still in flight, and `tag` fails on the missing `sha-` tag.
+# Recover by re-running this run's failed jobs once that Images run has
+# finished: `release-please` succeeded, so the released version and sha carry
+# over and nothing is released twice.
 on:
   workflow_run:
     workflows: [Images]
