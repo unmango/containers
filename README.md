@@ -9,13 +9,13 @@ This repository is only for wrapping software someone else wrote.
 
 ## Images
 
-| Image                 | Wraps                                                                   |
-| --------------------- | ----------------------------------------------------------------------- |
-| `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus `nix`, `make` and `xz` |
-| `coredns`             | [CoreDNS][]                                                             |
-| `gitlab-operator-v2`  | [GitLab Operator][]                                                     |
-| `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store |
-| `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`              |
+| Image                 | Wraps                                                                          |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `actions-runner`      | [`ghcr.io/actions/actions-runner`][runner], plus static `nix`, `make` and `xz` |
+| `coredns`             | [CoreDNS][]                                                                    |
+| `gitlab-operator-v2`  | [GitLab Operator][]                                                            |
+| `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store        |
+| `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`                     |
 
 ## Usage
 
@@ -73,6 +73,104 @@ env:
 
 Use the `extra-` forms there.
 A plain assignment replaces the image's value rather than adding to it.
+
+The image ships no store paths, only an empty `/nix` owned by the runner user, uid and gid 1001.
+Its `/usr/local/bin` holds statically linked binaries rather than the usual symlinks into the store, so mounting anything at `/nix` is a supported thing to do rather than something that hides the tools.
+
+`/etc/nix/nix.conf` sets `store = local` to make that work.
+Nix's default `auto` store abandons `/nix` for a chroot store under `$HOME` whenever `/nix/var/nix` is missing, which is the state of every empty volume, and it does so with a warning rather than an error.
+Naming the local store makes nix create that layout under `/nix` instead.
+
+Docker seeds a fresh named volume from the image's `/nix`, ownership included, so mounting one needs no preparation:
+
+```sh
+docker run -v nix:/nix ghcr.io/unmango/actions-runner:2.337.0
+```
+
+A bind mount keeps the host directory's ownership instead, so `chown 1001:1001` it first.
+
+#### Kubernetes
+
+Nothing prepares the volume: nix creates `store`, `var` and its build directory itself, with its own modes rather than the volume's, so an empty one is enough.
+The only requirement is that the runner user, uid and gid 1001, can write to it.
+
+| Backing at `/nix` | Warm across jobs | Costs                                                     |
+| ----------------- | ---------------- | --------------------------------------------------------- |
+| `emptyDir`        | no               | nothing                                                   |
+| Node-local volume | yes, per node    | garbage collection, and a volume type your cluster allows |
+| Ephemeral PVC     | no               | `fsGroup: 1001`, a storage class                          |
+| Nothing mounted   | no               | puts the store on an overlayfs, which breaks builds       |
+
+An `emptyDir` is the default worth reaching for, and under [Actions Runner Controller][arc] it needs no `fsGroup` and no initContainer, because kubelet creates one mode `0777`:
+
+```yaml
+template:
+  spec:
+    containers:
+      - name: runner
+        image: ghcr.io/unmango/actions-runner:2.337.0
+        command: [/home/runner/run.sh]
+        volumeMounts:
+          - name: nix
+            mountPath: /nix
+    volumes:
+      - name: nix
+        emptyDir: {}
+```
+
+A PVC works the same way but arrives owned by root, so it needs `template.spec.securityContext.fsGroup: 1001` to be writable.
+That is kubelet's doing, and only where the volume plugin leaves permissions to it: a CSI driver that declares `fsGroup` support applies it itself, and a backend that cannot represent uid and gid 1001 has to be provisioned with ownership the runner can write to instead.
+Add `fsGroupChangePolicy: OnRootMismatch` beside it so a store that survives is not walked recursively on every pod.
+
+A generic ephemeral claim buys nothing over an `emptyDir`, which takes a `sizeLimit` of its own: Kubernetes deletes the generated PVC with the pod, and a `Retain` reclaim policy only leaves a released volume behind that the next runner does not get.
+
+Backing `/nix` with a directory on the node is what makes a job land warm, because every runner scheduled there shares one store.
+Concurrent pods sharing a store are fine, that being the same thing as several users on one machine, which nix's lock files and its database are built for.
+The costs are real though: the store grows until something collects it, and `hostPath` is forbidden by both the baseline and the restricted pod security standards, so a local `PersistentVolume`, or a provisioner that hands out node-local directories, is the shape that passes admission.
+A CSI inline volume is not one: it is created and destroyed with the pod, which is an `emptyDir` with extra steps.
+
+Do not share one store across nodes over `ReadWriteMany`.
+A nix store is SQLite plus `flock`, and that pairing on NFS or CephFS is where stores get corrupted rather than merely slow.
+
+With no mount at all, nix creates `/nix` on the container filesystem and the store is discarded with the container.
+That is the right shape for a throwaway runner and the wrong one for a real workload: a store on an overlayfs cannot tear down a build directory it has just emptied, failing with `cannot unlink ...: Directory not empty`, which derivations that write many small files hit reliably.
+
+#### Settings
+
+Deployment-specific settings go in `NIX_CONFIG`, which nix merges on top of the shipped `nix.conf`.
+There is no daemon, so `extra-substituters` and `extra-trusted-public-keys` take effect from there directly; `trusted-users` does not come into it.
+A substituter is the first thing to set, and with an ephemeral store it is the only thing standing between a job and downloading its whole closure from upstream.
+
+`max-jobs` is nix's default of 1, so a runner builds one derivation at a time whatever the pod is given.
+Raising it is worth doing and `auto` is the wrong way: nix reads the machine's core count rather than the cgroup's CPU limit, so a pod limited to 2 cores on a 24 core node resolves `auto` to 24.
+`cores`, which is what a builder gets as `-j`, defaults to 0 and means the same thing.
+Both want the number the pod is actually allowed:
+
+```yaml
+env:
+  - name: NIX_CONFIG
+    value: |
+      max-jobs = 2
+      cores = 2
+```
+
+Garbage collection is off unless asked for.
+A store thrown away with its pod never needs it; a node-local one grows until the disk is full.
+`min-free` and `max-free` make nix collect mid-build, whenever free space falls under the first, until the second is available again:
+
+```yaml
+env:
+  - name: NIX_CONFIG
+    value: |
+      min-free = 10737418240
+      max-free = 21474836480
+```
+
+The image cannot pick those numbers, which is why it does not try: they are a fraction of a disk it knows nothing about, and they are wrong outright for an ephemeral store.
+Temporary roots keep a collection from taking paths a running build is using, so concurrent runners sharing one store are fine.
+What it does reclaim is a finished result nothing holds a root on, which is the point, and the reason to leave headroom rather than set `min-free` at the last free byte.
+
+`auto-optimise-store = true` is worth adding to a node-local store as well, which hardlinks identical files together as they arrive and pays for the collection in disk it never uses.
 
 ### `hercules-ci-agent`
 
@@ -184,6 +282,7 @@ Every commit type with a visible changelog section in `release-please-config.jso
 Renovate's Nix and base image bumps are committed as `deps:` for this reason, while its GitHub Action pins stay `chore(deps)`.
 Never hand-edit `version.txt` or `CHANGELOG.md`.
 
+[arc]: https://github.com/actions/actions-runner-controller
 [nix2container]: https://github.com/nlewo/nix2container
 [release-please]: https://github.com/googleapis/release-please
 [runner]: https://github.com/actions/runner

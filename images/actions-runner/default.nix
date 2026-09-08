@@ -1,13 +1,12 @@
 {
-  buildEnv,
-  gnumake,
   lib,
   mkImage,
-  nix,
   nix2container,
+  nukeReferences,
+  pkgsStatic,
+  runCommand,
   stdenv,
   writeTextDir,
-  xz,
 }:
 let
   base = import ./base.nix;
@@ -24,19 +23,86 @@ let
   # architecture, which the update script checks, so one pin serves both.
   baseConfig = lib.importJSON ./config.json;
 
-  # Link into /usr/local, not /. A layer containing a real ./bin directory
-  # replaces the base image's `/bin -> usr/bin` symlink and hides everything the
-  # base image resolves through it, including git and node.
-  tools = buildEnv {
-    name = "actions-runner-tools";
-    paths = [
-      gnumake
-      nix
-      xz
-    ];
-    pathsToLink = [ "/bin" ];
-    extraPrefix = "/usr/local";
-  };
+  # Real files under /usr/local, statically linked, referring to nothing under
+  # /nix. That is what lets a consumer mount whatever they like at /nix: the
+  # mount hides the store these were built from, and the tools do not care.
+  #
+  # buildEnv's extraPrefix is unusable here for the same reason. It fills
+  # /usr/local with symlinks into the store, every one of which dangles the
+  # moment something is mounted over /nix.
+  #
+  # /usr/local rather than /, either way. A layer containing a real ./bin
+  # directory replaces the base image's `/bin -> usr/bin` symlink and hides
+  # everything the base image resolves through it, including git and node.
+  tools =
+    runCommand "actions-runner-tools"
+      {
+        nativeBuildInputs = [ nukeReferences ];
+
+        paths = [
+          pkgsStatic.gnumake
+          pkgsStatic.nix
+          pkgsStatic.xz
+        ];
+      }
+      ''
+        mkdir -p "$out/usr/local/bin"
+
+        # A relative symlink between two entries of one bin directory keeps
+        # working once both sides are copied, so it stays a symlink rather than
+        # becoming a second copy of a multi-megabyte binary. nix's dozen
+        # nix-<verb> aliases and xz's are all of this shape.
+        relativeLink() {
+          local link
+          [ -L "$1" ] || return 1
+          link="$(readlink "$1")"
+          [ "$link" = "''${link#/}" ]
+        }
+
+        # A shell wrapper's shebang names an interpreter in the store, which is
+        # the one thing this image cannot rely on being there. Leaving it out
+        # beats putting it on PATH to fail on first use. xz's xzgrep, xzdiff,
+        # xzless and xzmore are these.
+        shebang() {
+          [ "$(head -c 2 "$1")" = '#!' ]
+        }
+
+        for path in $paths; do
+          for src in "$path"/bin/*; do
+            if relativeLink "$src" || shebang "$src"; then
+              continue
+            fi
+
+            dest="$out/usr/local/bin/$(basename "$src")"
+            cp -L "$src" "$dest"
+
+            # A copied binary still carries, as plain strings, the store paths
+            # its original was built against. That is enough for nix to call
+            # them references and for nix2container to ship all 470MB of them
+            # into a /nix this image otherwise leaves empty. None are
+            # load-bearing: the certificate bundle comes from NIX_SSL_CERT_FILE
+            # and the rest are defaults nix falls back off of silently.
+            chmod +w "$dest"
+            nuke-refs "$dest"
+            chmod 0555 "$dest"
+          done
+        done
+
+        for path in $paths; do
+          for src in "$path"/bin/*; do
+            if ! relativeLink "$src"; then
+              continue
+            fi
+
+            link="$(readlink "$src")"
+
+            # Dropped along with the wrapper it names, rather than left dangling.
+            if [ -e "$out/usr/local/bin/$link" ]; then
+              ln -s "$link" "$out/usr/local/bin/$(basename "$src")"
+            fi
+          done
+        done
+      '';
 
   # Settings every job wants, so no workflow has to pass them. Anything
   # deployment-specific, a substituter above all, arrives as NIX_CONFIG at
@@ -46,7 +112,23 @@ let
     # Nothing here runs as root and there is no daemon, so builds run as the
     # invoking user and the sandbox is unavailable.
     sandbox = false
+    # The default `auto` store gives up on /nix and redirects into a chroot
+    # store under $HOME whenever /nix/var/nix is absent, which is the state of
+    # every empty volume a consumer mounts there, and it does so with a warning
+    # rather than an error. Naming the local store makes nix create that layout
+    # under /nix instead, so the mount is what gets used. The image ships no
+    # store paths for it to conflict with.
+    store = local
   '';
+
+  # An empty /nix owned by the runner, which is all nix needs to create store,
+  # var and its build directory underneath. It carries no store paths.
+  #
+  # Docker seeds a fresh named volume from the image's directory, ownership
+  # included, so mounting one at /nix works without preparing it first. Without
+  # this the volume would arrive owned by root and nix could not write to it.
+  # A bind mount or a Kubernetes volume keeps its own ownership either way.
+  nixDir = runCommand "actions-runner-store-root" { } "mkdir -p $out/nix";
 
   # cachix/install-nix-action ends by appending the user profile's bin directory
   # to $GITHUB_PATH. It never reaches that line on this image: it finds nix at
@@ -79,8 +161,8 @@ let
       entry
   ) baseConfig.Env;
 
-  # The base image's runner user, which owns the nix database so it can build
-  # in the store this image ships.
+  # The base image's runner user, which everything in the image runs as and
+  # which therefore has to own /nix.
   runnerUid = 1001;
   runnerGid = 1001;
 in
@@ -97,28 +179,20 @@ mkImage {
   copyToRoot = [
     tools
     nixConf
+    nixDir
   ];
 
-  # Registers the store paths this image ships in /nix/var/nix/db, which is what
-  # makes the baked nix usable instead of a pile of files nix does not know
-  # about. Consumers can then skip cachix/install-nix-action.
-  #
-  # Unlike dockerTools' includeNixDB, which writes the database 0600 root and
-  # needs a chmod pass afterwards, nix2container applies mode 0755 plus these
-  # ids to the whole database path.
-  #
-  # The database is built from the closure of `copyToRoot`, but nix2container
-  # rewrites the top-level `copyToRoot` paths to `/` rather than shipping them
-  # in the store. `tools` and `nixConf` are therefore registered without being
-  # present, so `nix-store --verify` reports them and their gcroot symlinks
-  # dangle. Their closures are shipped and nothing references those two paths,
-  # so builds inside the image are unaffected. nlewo/nix2container#194 is the
-  # upstream fix, unmerged. Adding them as `layers` deps is not a workaround:
-  # `buildLayer` skips any store path already belonging to a listed layer, so
-  # `tools` would never reach /usr/local.
-  initializeNixDatabase = true;
-  nixUid = runnerUid;
-  nixGid = runnerGid;
+  # Anchored so it applies to the /nix inside nixDir and not to nixDir itself,
+  # which lands at / in the image.
+  perms = [
+    {
+      path = nixDir;
+      regex = "/nix$";
+      mode = "0755";
+      uid = runnerUid;
+      gid = runnerGid;
+    }
+  ];
 
   config = baseConfig // {
     # OCI config keys are capitalized. unmango/pkgs' github-runner image used
