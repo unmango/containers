@@ -74,12 +74,20 @@ env:
 Use the `extra-` forms there.
 A plain assignment replaces the image's value rather than adding to it.
 
-The image ships nothing under `/nix` and brings no store of its own.
+The image ships no store paths, only an empty `/nix` owned by the runner user, uid and gid 1001.
 Its `/usr/local/bin` holds statically linked binaries rather than the usual symlinks into the store, so mounting anything at `/nix` is a supported thing to do rather than something that hides the tools.
 
 `/etc/nix/nix.conf` sets `store = local` to make that work.
 Nix's default `auto` store abandons `/nix` for a chroot store under `$HOME` whenever `/nix/var/nix` is missing, which is the state of every empty volume, and it does so with a warning rather than an error.
 Naming the local store makes nix create that layout under `/nix` instead.
+
+Docker seeds a fresh named volume from the image's `/nix`, ownership included, so mounting one needs no preparation:
+
+```sh
+docker run -v nix:/nix ghcr.io/unmango/actions-runner:2.337.0
+```
+
+A bind mount keeps the host directory's ownership instead, so `chown 1001:1001` it first.
 
 #### Kubernetes
 
@@ -111,11 +119,15 @@ template:
 ```
 
 A PVC works the same way but arrives owned by root, so it needs `template.spec.securityContext.fsGroup: 1001` to be writable.
-Per pod it buys nothing over an `emptyDir` except a size limit, since an ephemeral claim is discarded with the runner either way.
+That is kubelet's doing, and only where the volume plugin leaves permissions to it: a CSI driver that declares `fsGroup` support applies it itself, and a backend that cannot represent uid and gid 1001 has to be provisioned with ownership the runner can write to instead.
+Add `fsGroupChangePolicy: OnRootMismatch` beside it so a store that survives is not walked recursively on every pod.
+
+A generic ephemeral claim buys nothing over an `emptyDir`, which takes a `sizeLimit` of its own: Kubernetes deletes the generated PVC with the pod, and a `Retain` reclaim policy only leaves a released volume behind that the next runner does not get.
 
 Backing `/nix` with a directory on the node is what makes a job land warm, because every runner scheduled there shares one store.
 Concurrent pods sharing a store are fine, that being the same thing as several users on one machine, which nix's lock files and its database are built for.
-The costs are real though: the store grows until something collects it, and `hostPath` is forbidden by both the baseline and the restricted pod security standards, so a local `PersistentVolume` or a CSI inline volume is the shape that passes admission.
+The costs are real though: the store grows until something collects it, and `hostPath` is forbidden by both the baseline and the restricted pod security standards, so a local `PersistentVolume`, or a provisioner that hands out node-local directories, is the shape that passes admission.
+A CSI inline volume is not one: it is created and destroyed with the pod, which is an `emptyDir` with extra steps.
 
 Do not share one store across nodes over `ReadWriteMany`.
 A nix store is SQLite plus `flock`, and that pairing on NFS or CephFS is where stores get corrupted rather than merely slow.

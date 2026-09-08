@@ -116,10 +116,19 @@ let
     # store under $HOME whenever /nix/var/nix is absent, which is the state of
     # every empty volume a consumer mounts there, and it does so with a warning
     # rather than an error. Naming the local store makes nix create that layout
-    # under /nix instead, so the mount is what gets used. The image ships
-    # nothing under /nix for it to conflict with.
+    # under /nix instead, so the mount is what gets used. The image ships no
+    # store paths for it to conflict with.
     store = local
   '';
+
+  # An empty /nix owned by the runner, which is all nix needs to create store,
+  # var and its build directory underneath. It carries no store paths.
+  #
+  # Docker seeds a fresh named volume from the image's directory, ownership
+  # included, so mounting one at /nix works without preparing it first. Without
+  # this the volume would arrive owned by root and nix could not write to it.
+  # A bind mount or a Kubernetes volume keeps its own ownership either way.
+  nixDir = runCommand "actions-runner-store-root" { } "mkdir -p $out/nix";
 
   # cachix/install-nix-action ends by appending the user profile's bin directory
   # to $GITHUB_PATH. It never reaches that line on this image: it finds nix at
@@ -152,8 +161,8 @@ let
       entry
   ) baseConfig.Env;
 
-  # The base image's runner user, which owns the nix database so it can build
-  # in the store this image ships.
+  # The base image's runner user, which everything in the image runs as and
+  # which therefore has to own /nix.
   runnerUid = 1001;
   runnerGid = 1001;
 in
@@ -170,6 +179,19 @@ mkImage {
   copyToRoot = [
     tools
     nixConf
+    nixDir
+  ];
+
+  # Anchored so it applies to the /nix inside nixDir and not to nixDir itself,
+  # which lands at / in the image.
+  perms = [
+    {
+      path = nixDir;
+      regex = "/nix$";
+      mode = "0755";
+      uid = runnerUid;
+      gid = runnerGid;
+    }
   ];
 
   config = baseConfig // {
