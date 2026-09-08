@@ -117,6 +117,10 @@ The repository has one version, managed by release-please (`release-please-confi
 Never hand-edit those; the `chore(main): release` PR does.
 The `simple` release type is used because the version is not needed inside Nix: CI derives the OCI tag from release-please's outputs.
 
+`initial-version` is `0.1.0` because release-please has no version to bump from until a release exists, and the `0.0.0` in the manifest is not one: there is no tag or GitHub release behind it.
+Without it the first release is release-please's own default of `1.0.0`, whatever the commits say.
+The setting only applies to that first release and is inert afterwards.
+
 Each image publishes `<version>-<release>[-<variant>]` per release alongside the moving `<version>` and `sha-<short>` tags, where `<version>` is upstream's and `<release>` is this repository's.
 The variant stays last, matching `sha-<short>-<variant>`, which is why `release.yml` builds the tag from `imageMeta.version` rather than `imageTag`.
 Consumers need Renovate's `loose` versioning to follow that tag; the default `docker` versioning treats the hyphen suffix as a compatibility marker.
