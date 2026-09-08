@@ -24,11 +24,34 @@ docker pull ghcr.io/unmango/actions-runner:2.337.0
 docker pull docker.io/unstoppablemango/coredns:1.14.6
 ```
 
-Tags are the wrapped application's version, plus `latest` and `sha-<short>` on `main`.
-Pin by digest if you need immutability: a version tag is republished when the Nix closure underneath it changes.
+| Tag                   | Moves                                                          |
+| --------------------- | -------------------------------------------------------------- |
+| `<version>`           | Every `main` build of that upstream version                    |
+| `<version>-<release>` | Never. One per release of this repository, e.g. `1.14.6-0.3.1` |
+| `sha-<short>`         | Never                                                          |
+| `latest`              | Every `main` build                                             |
 
-Some images publish variants, which share a repository and differ by a tag suffix: `<version>-<variant>`, plus `<variant>` in place of `latest`.
+`<version>` is the wrapped application's version and `<release>` is this repository's, from its GitHub Releases.
+`<version>-<release>` is a readable stand-in for a digest: the release workflow writes it once, from the digest the `sha-<short>` tag resolves to, and fails rather than move a tag that already points somewhere else.
+Neither registry enforces that on its own, so pin by digest where the guarantee has to come from the registry.
+
+Some images publish variants, which share a repository and differ by a tag suffix: `<version>-<variant>`, `<version>-<release>-<variant>`, `sha-<short>-<variant>`, plus `<variant>` in place of `latest`.
 Swapping between them is a tag change.
+
+### Renovate
+
+Renovate's default `docker` versioning treats everything after the first hyphen as a compatibility marker, so it never proposes `1.14.6-0.3.1` to `1.14.6-0.3.2`.
+The `loose` versioning compares the release part numerically:
+
+```json
+{
+  "matchDatasources": ["docker"],
+  "matchPackageNames": ["ghcr.io/unmango/**", "docker.io/unstoppablemango/**"],
+  "versioning": "loose"
+}
+```
+
+`loose` has no compatibility check, so a consumer of a variant also needs `"allowedVersions": "/-standalone$/"` (or the variant's name) to avoid being offered the plain image.
 
 ### `actions-runner`
 
@@ -149,7 +172,20 @@ If the image ships `nix` itself, set `initializeNixDatabase = true` so the store
 
 Renovate bumps `version` in `base.nix` but cannot regenerate the pinned files, so `.github/workflows/update-manifests.yml` does it on Renovate branches and CI fails on drift.
 
+### Releases
+
+[release-please][] versions this repository as a whole.
+After a successful Images run on `main`, and only where releasable commits have landed since the last release, it opens or updates a `chore(main): release` PR carrying `CHANGELOG.md` and `version.txt`.
+Merging that PR tags `v<release>`, publishes a GitHub Release, and retags every image's `sha-<short>` as `<version>-<release>`, with no rebuild.
+
+Every commit type with a visible changelog section in `release-please-config.json` is releasable: `feat`, `fix`, `deps`, `docs`, `refactor`, `perf`, `revert`, `test`, `build`, and `ci`.
+`chore` is hidden and produces no release on its own.
+`feat` bumps the minor and the rest the patch; a `!` after the type or a `BREAKING CHANGE` footer bumps the major, or the minor while the version is below 1.0.
+Renovate's Nix and base image bumps are committed as `deps:` for this reason, while its GitHub Action pins stay `chore(deps)`.
+Never hand-edit `version.txt` or `CHANGELOG.md`.
+
 [nix2container]: https://github.com/nlewo/nix2container
+[release-please]: https://github.com/googleapis/release-please
 [runner]: https://github.com/actions/runner
 [CoreDNS]: https://coredns.io
 [GitLab Operator]: https://gitlab.com/gitlab-org/cloud-native/gitlab-operator

@@ -105,14 +105,34 @@ Reformatting them would make CI's drift check compare against prettier's output.
 Renovate bumps `version` in `base.nix` but cannot regenerate the pins, so `.github/workflows/update-manifests.yml` runs `make manifests` on `renovate/**` branches and pushes with a PAT (`GITHUB_TOKEN` pushes do not re-trigger workflows).
 CI's `manifests` job fails on drift.
 
+## Versioning
+
+The repository has one version, managed by release-please (`release-please-config.json`, `.release-please-manifest.json`, `version.txt`, `CHANGELOG.md`).
+Never hand-edit those; the `chore(main): release` PR does.
+The `simple` release type is used because the version is not needed inside Nix: CI derives the OCI tag from release-please's outputs.
+
+Each image publishes `<version>-<release>[-<variant>]` per release alongside the moving `<version>` and `sha-<short>` tags, where `<version>` is upstream's and `<release>` is this repository's.
+The variant stays last, matching `sha-<short>-<variant>`, which is why `release.yml` builds the tag from `imageMeta.version` rather than `imageTag`.
+Consumers need Renovate's `loose` versioning to follow that tag; the default `docker` versioning treats the hyphen suffix as a compatibility marker.
+
+Per-image versioning was rejected: release-please attributes commits to a component by the paths they touch, and a `flake.lock` bump touches no `images/<name>` path, so it would count toward nothing.
+
+Release-please skips a release when every commit since the last one sits in a hidden changelog section.
+`deps` is visible and `chore` hidden, so Renovate's Nix and `base.nix` managers commit as `deps:` (a `packageRules` entry in `.github/renovate.json`) and its GitHub Action pins, which do not change any image, stay `chore(deps)`.
+
 ## CI
 
 `ci.yml` runs `make check` across x86_64-linux, aarch64-linux, and aarch64-darwin, builds `.#archives` on the Linux legs, and checks manifest drift.
 `images.yml` enumerates `imageMeta`, builds and pushes per-arch `<sha>-<arch>` tags, then assembles the multi-arch index with `docker buildx imagetools create` (skopeo has no index-create verb).
+`release.yml` runs on `workflow_run` after a successful Images run for a push to `main`, so a release is only cut for a commit whose images are published.
+It runs release-please with a PAT (`RELEASE_PLEASE_TOKEN`), because a release PR opened with `GITHUB_TOKEN` triggers no workflows and could never pass the required checks.
+When a release is created it re-enumerates `imageMeta` at the released commit and retags `sha-<short>` as `<version>-<release>` with `imagetools create`; nothing is rebuilt.
+The source is the digest `sha-<short>` resolves to rather than the tag, so a re-run cannot pick up different content, and the step refuses to move a release tag that already points at a different digest, which is what lets the README describe that tag as written once.
+Each registry resolves its own `sha-<short>`, so the two holding the same index follows from Images pushing identical content to both, not from anything the retag checks.
 
 Checkout stays in each job because a local action cannot be referenced before the checkout exists; `.github/actions/setup` holds the Nix install and Cachix steps that follow it.
 
-Both workflows end in a single summary job (`build`, `image`) that fails unless every needed job succeeded, because matrix legs cannot be named as required checks in a ruleset.
+Each workflow ends in a single summary job (`build`, `image`, `release`) that fails unless every needed job succeeded, because matrix legs cannot be named as required checks in a ruleset.
 
 Publishing is guarded on `github.ref == refs/heads/<default branch>` rather than merely "not a pull request", since `workflow_dispatch` accepts any ref.
 Matrix values reach shell steps through `env:` rather than interpolation, because a pull request controls the image names in its own flake.
