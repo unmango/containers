@@ -121,6 +121,36 @@ let
     store = local
   '';
 
+  # git 2.55 ends `git commit` by spawning `git maintenance run --auto --quiet
+  # --detach`, a background process that outlives the command and keeps writing
+  # into .git. Inside a derivation it outlives the build, so nix deletes the
+  # build directory out from under it and the build fails in cleanup even though
+  # it succeeded:
+  #
+  #   error: cannot unlink ".../project/.git": Directory not empty
+  #
+  # treefmt-nix's build.check runs `git init && git add . && git commit` in the
+  # build directory, which is what makes this reproducible. Nothing on an
+  # ephemeral runner gains from repacking a repository that is about to be
+  # deleted.
+  #
+  # This is the system config: nixpkgs' git is built with
+  # ETC_GITCONFIG=/etc/gitconfig, and a derivation reads it only because
+  # nix.conf above sets `sandbox = false`. A workflow that installs a sandboxed
+  # nix of its own is not covered. Keys are unindented because git skips leading
+  # whitespace, and a literal tab inside an indented Nix string survives
+  # indentation stripping in a way a diff does not show.
+  #
+  # The base image carries no /etc/gitconfig of its own. copyToRoot layers above
+  # fromImage, so if it ever gains one this file replaces it wholesale rather
+  # than merging; re-check when bumping base.nix.
+  gitConfig = writeTextDir "etc/gitconfig" ''
+    [maintenance]
+    auto = false
+    [gc]
+    auto = 0
+  '';
+
   # An empty /nix owned by the runner, which is all nix needs to create store,
   # var and its build directory underneath. It carries no store paths.
   #
@@ -179,6 +209,7 @@ mkImage {
   copyToRoot = [
     tools
     nixConf
+    gitConfig
     nixDir
   ];
 
