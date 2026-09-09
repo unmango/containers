@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/unmango/containers/compare/v0.1.0...v0.1.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **actions-runner:** turn off git's background maintenance ([#26](https://github.com/unmango/containers/issues/26)) ([571f834](https://github.com/unmango/containers/commit/571f834d4adb98fba4273281550cc73dd5cb6e81))
+
 ## 0.1.0 (2026-09-08)
 
 
