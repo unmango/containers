@@ -1,0 +1,41 @@
+name: Update manifests
+
+# Renovate bumps `version` in an image's base.nix, but it cannot regenerate the
+# pinned base manifests and configs that go with it. Without this the CI drift
+# check fails every Renovate PR and each one needs a manual `make manifests`.
+on:
+  push:
+    branches: ["renovate/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: update
+    runs-on: ubuntu-latest
+    steps:
+      # This job commits and pushes, so it is the one checkout that has to
+      # keep its credentials.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+        with:
+          # A PAT rather than GITHUB_TOKEN: pushes made with GITHUB_TOKEN do not
+          # re-trigger workflows, so CI would never run against the regenerated
+          # pins.
+          token: ${{ secrets.UPDATE_TOKEN }}
+
+      - uses: ./.github/actions/setup
+
+      - run: nix develop -c make manifests
+
+      - name: Commit regenerated pins
+        run: |
+          if git diff --quiet; then
+            echo "pins already current"
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am 'chore: regenerate pinned base manifests'
+          git push

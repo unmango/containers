@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>UnstoppableMango/renovate-config", "schedule:weekly"],
+  "nix": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Nix input and base image bumps change the images, so they carry the commit type release-please releases on. GitHub Action pins stay chore(deps) and do not release.",
+      "matchManagers": ["nix", "custom.regex"],
+      "semanticCommitType": "deps",
+      "semanticCommitScope": null
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Base image versions declared in images/<name>/base.nix",
+      "managerFilePatterns": ["/^images/.+/base\\.nix$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+version = \"(?<currentValue>[^\"]+)\";"
+      ]
+    }
+  ]
+}

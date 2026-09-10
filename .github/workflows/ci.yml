@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing here writes anything back; publishing lives in the Images workflow.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x86_64-linux
+            runs-on: ubuntu-latest
+          - name: aarch64-linux
+            runs-on: ubuntu-24.04-arm
+          # Linux images cannot be built on darwin; this leg only checks that
+          # the flake still evaluates and formats there.
+          - name: aarch64-darwin
+            runs-on: macos-latest
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here runs git against the remote, and these jobs
+          # build expressions from the branch under review.
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          cachix-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          gc: true
+
+      - run: make check
+
+      # Images are built and published by the Images workflow. Archives are not
+      # published, so they have no place in that matrix and are built here.
+      - if: runner.os == 'Linux'
+        run: nix build .#archives
+
+  manifests:
+    name: manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here runs git against the remote, and these jobs
+          # build expressions from the branch under review.
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - run: nix develop -c make manifests
+
+      - name: Pinned base manifests are stale, run `make manifests`
+        run: git diff --exit-code
+
+  build:
+    name: build
+    # A required status check for this workflow. The work happens in a matrix,
+    # which reports a context per leg and cannot be required by a ruleset
+    # without naming every system.
+    needs: [check, manifests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          printf 'check      %s\n' '${{ needs.check.result }}'
+          printf 'manifests  %s\n' '${{ needs.manifests.result }}'
+
+      # Anything other than success fails the gate, `skipped` included: a job is
+      # skipped here only when something it needed failed first.
+      - name: Fail unless every job succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1

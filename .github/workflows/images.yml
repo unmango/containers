@@ -1,0 +1,193 @@
+name: Images
+
+# Separate from CI so a publish can be re-run on its own, via workflow_dispatch,
+# without re-running the check matrix. Its required status check is the `image`
+# summary at the bottom.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+# `packages: write` is granted per job, to the two that publish. At the workflow
+# level it would also reach the pull_request runs, which execute commands from
+# the branch being reviewed.
+permissions:
+  contents: read
+
+env:
+  GHCR_NAMESPACE: ghcr.io/unmango
+  # The Docker Hub namespace predates the unmango org and is where the existing
+  # images already live.
+  HUB_NAMESPACE: docker.io/unstoppablemango
+
+jobs:
+  enumerate:
+    name: enumerate
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.list.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here runs git against the remote, and these jobs
+          # build expressions from the branch under review.
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      # Reads the same attrset the packages are built from, so adding an image
+      # needs no edit to this workflow. Each entry carries its attrset key plus
+      # its imageMeta, so the matrix legs read `matrix.image.<field>` directly.
+      - id: list
+        run: |
+          nix eval --json '.#legacyPackages.x86_64-linux.imageMeta' \
+            | jq -c 'to_entries | map({ key } + .value) | "images=\(.)"' -r >>"$GITHUB_OUTPUT"
+
+  publish:
+    name: image (${{ matrix.image.key }}, ${{ matrix.arch }})
+    needs: [enumerate]
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.enumerate.outputs.images) }}
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runs-on: ubuntu-latest
+          - arch: arm64
+            runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here runs git against the remote, and these jobs
+          # build expressions from the branch under review.
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          cachix-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          gc: true
+
+      # Through the environment rather than interpolated into the script: the
+      # image names come from the branch's own flake, so a pull request could
+      # otherwise choose what this shell runs.
+      - env:
+          IMAGE: ${{ matrix.image.key }}
+        run: nix build ".#${IMAGE}"
+
+      # skopeo's `nix:` transport reads layer blobs out of the local store, so
+      # the push has to happen in the same job that built the image. The
+      # per-arch tags are intermediate; `index` assembles the real ones.
+      #
+      # Guarded on the default branch rather than merely "not a pull request":
+      # workflow_dispatch accepts any ref, and publishing from a feature branch
+      # would let `index` move `latest` and the version tag onto it.
+      # The repository is `imageName`, not the matrix key, so that variants of
+      # one application can share a repository and be told apart by tag. The key
+      # still names the flake attribute, and it goes in the staging tag because
+      # two variants pushing to one repository would otherwise collide on
+      # `<sha>-<arch>`.
+      - name: Push per-arch image
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          IMAGE: ${{ matrix.image.key }}
+          IMAGE_NAME: ${{ matrix.image.imageName }}
+          ARCH: ${{ matrix.arch }}
+          GHCR_CREDS: ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}
+          HUB_CREDS: ${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          nix run ".#${IMAGE}.copyTo" -- \
+            --dest-creds "$GHCR_CREDS" \
+            "docker://${GHCR_NAMESPACE}/${IMAGE_NAME}:${GITHUB_SHA}-${IMAGE}-${ARCH}"
+
+          nix run ".#${IMAGE}.copyTo" -- \
+            --dest-creds "$HUB_CREDS" \
+            "docker://${HUB_NAMESPACE}/${IMAGE_NAME}:${GITHUB_SHA}-${IMAGE}-${ARCH}"
+
+  index:
+    name: index (${{ matrix.image.key }})
+    needs: [enumerate, publish]
+    # Matches the push step's guard: these are the tags consumers pull, so they
+    # only ever move for the default branch.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.enumerate.outputs.images) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # skopeo has no index-create verb, so buildx assembles the manifest list
+      # from the per-arch tags already pushed to each registry.
+      #
+      # The `sha-` tag is also what release.yml retags as
+      # `<version>-<release>` when a release is cut, so it is pushed for every
+      # default-branch commit, not only the ones that end up released.
+      - name: Assemble multi-arch index
+        env:
+          IMAGE: ${{ matrix.image.key }}
+          IMAGE_NAME: ${{ matrix.image.imageName }}
+          IMAGE_TAG: ${{ matrix.image.imageTag }}
+          VARIANT: ${{ matrix.image.variant }}
+        run: |
+          short="${GITHUB_SHA::7}"
+
+          # A JSON null interpolates to the empty string, so an image with no
+          # variant keeps `latest` and an unsuffixed sha tag, and each variant
+          # gets its own moving tag instead of fighting over `latest`.
+          # IMAGE_TAG is already "<version>-<variant>", so it is used as-is.
+          suffix="${VARIANT:+-${VARIANT}}"
+          moving="${VARIANT:-latest}"
+
+          for ns in "$GHCR_NAMESPACE" "$HUB_NAMESPACE"; do
+            repo="${ns}/${IMAGE_NAME}"
+            docker buildx imagetools create \
+              --tag "${repo}:${IMAGE_TAG}" \
+              --tag "${repo}:sha-${short}${suffix}" \
+              --tag "${repo}:${moving}" \
+              "${repo}:${GITHUB_SHA}-${IMAGE}-amd64" \
+              "${repo}:${GITHUB_SHA}-${IMAGE}-arm64"
+          done
+
+  image:
+    name: image
+    # A required status check for this workflow. The work happens in a matrix
+    # generated from the image list, which reports a context per leg and cannot
+    # be required by a ruleset without naming every image.
+    #
+    # `index` is deliberately absent: it only runs on the default branch, and
+    # publishing is not a merge gate.
+    needs: [enumerate, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          printf 'enumerate  %s\n' '${{ needs.enumerate.result }}'
+          printf 'publish    %s\n' '${{ needs.publish.result }}'
+
+      # Anything other than success fails the gate, `skipped` included: a job is
+      # skipped here only when something it needed failed first.
+      - name: Fail unless every job succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1
