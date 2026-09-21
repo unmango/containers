@@ -34,25 +34,19 @@ jobs:
     # Images also runs for pull requests; only a push to the default branch
     # can produce a release.
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
-    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      version: ${{ steps.release.outputs.version }}
-      sha: ${{ steps.release.outputs.sha }}
-    steps:
+    uses: unmango/actions/.github/workflows/release-please.yml@3ec4ed5a6af9c00f6a39e079df488573c77ebda6 # v1.0.1
+    with:
+      config-file: release-please-config.json
+      manifest-file: .release-please-manifest.json
+    secrets:
       # A pull request opened with GITHUB_TOKEN triggers no workflows, so the
       # release PR would arrive without the `build` and `image` checks the
       # ruleset requires. RELEASE_PLEASE_TOKEN is a PAT with contents and
       # pull-requests write.
-      - id: release
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+      token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   enumerate:
     name: enumerate
