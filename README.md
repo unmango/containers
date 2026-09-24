@@ -1,5 +1,7 @@
 # containers
 
+[![Hercules CI](https://hercules-ci.com/api/v1/site/github/account/unmango/project/containers/badge)](https://hercules-ci.com/github/unmango/containers)
+
 Smörgåsbord of OCI containers.
 
 Images that wrap third-party applications, built with [nix2container][] and published to both `ghcr.io/unmango/<name>` and `docker.io/unstoppablemango/<name>` for `linux/amd64` and `linux/arm64`.
