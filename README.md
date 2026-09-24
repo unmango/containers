@@ -15,6 +15,7 @@ This repository is only for wrapping software someone else wrote.
 | `coredns`             | [CoreDNS][]                                                                    |
 | `gitlab-operator-v2`  | [GitLab Operator][]                                                            |
 | `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store        |
+| `knot`                | [Tangled][] knot 2, `knot-server` and `knot-migrate`                           |
 | `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`                     |
 
 ## Usage
@@ -289,3 +290,4 @@ Never hand-edit `version.txt` or `CHANGELOG.md`.
 [CoreDNS]: https://coredns.io
 [GitLab Operator]: https://gitlab.com/gitlab-org/cloud-native/gitlab-operator
 [Hercules CI agent]: https://hercules-ci.com
+[Tangled]: https://tangled.org/tangled.org/core
