@@ -39,6 +39,11 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
+    # Source of knot 2 (`knot-rs`), which is not in nixpkgs and has no release
+    # tag of its own. Its nixpkgs is left unfollowed: the knot builds with the
+    # fenix toolchain pinned against it.
+    tangled.url = "git+https://tangled.org/tangled.org/core";
+
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   perSystem =
     {
@@ -12,6 +13,8 @@
       tools = {
         inherit (inputs'.nix2container.packages) nix2container skopeo-nix2container;
         inherit (inputs'.pkgs.packages) gitlab-operator-v2;
+        inherit (inputs'.tangled.packages) knot-rs knot-migrate;
+        inherit (inputs) tangled;
 
         mkImage = import ./lib/mk-image.nix {
           inherit (inputs'.nix2container.packages) nix2container;
@@ -30,6 +33,7 @@
         gitlab-operator-v2 = callPackage ./gitlab-operator-v2 { };
         hercules-ci-agent = callPackage ./hercules-ci-agent { };
         hercules-ci-agent-standalone = callPackage ./hercules-ci-agent/standalone.nix { };
+        knot = callPackage ./knot { };
         wireguard-cni-tools = callPackage ./wireguard-cni-tools { };
       };
 
