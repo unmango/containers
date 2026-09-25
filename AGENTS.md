@@ -135,7 +135,8 @@ Release-please skips a release when every commit since the last one sits in a hi
 `ci.yml` runs `make check` across x86_64-linux, aarch64-linux, and aarch64-darwin, builds `.#archives` on the Linux legs, and checks manifest drift.
 `images.yml` enumerates `imageMeta`, builds and pushes per-arch `<sha>-<arch>` tags, then assembles the multi-arch index with `docker buildx imagetools create` (skopeo has no index-create verb).
 `release.yml` runs on `workflow_run` after a successful Images run for a push to `main`, so a release is only cut for a commit whose images are published.
-It runs release-please with a PAT (`RELEASE_PLEASE_TOKEN`), because a release PR opened with `GITHUB_TOKEN` triggers no workflows and could never pass the required checks.
+It runs release-please as thecluster[bot], with a token minted from the `RELEASE_APP_CLIENT_ID` variable and `RELEASE_APP_PRIVATE_KEY` secret, because a release PR opened with `GITHUB_TOKEN` triggers no workflows and could never pass the required checks.
+An app token also gets the commits it pushes signed, which a PAT does not.
 When a release is created it re-enumerates `imageMeta` at the released commit and retags `sha-<short>` as `<version>-<release>` with `imagetools create`; nothing is rebuilt.
 The source is the digest `sha-<short>` resolves to rather than the tag, so a re-run cannot pick up different content, and the step refuses to move a release tag that already points at a different digest, which is what lets the README describe that tag as written once.
 Each registry resolves its own `sha-<short>`, so the two holding the same index follows from Images pushing identical content to both, not from anything the retag checks.

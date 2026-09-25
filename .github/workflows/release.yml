@@ -41,12 +41,12 @@ jobs:
     with:
       config-file: release-please-config.json
       manifest-file: .release-please-manifest.json
+      # thecluster[bot]. A pull request opened with GITHUB_TOKEN triggers no
+      # workflows, so the release PR would arrive without the `build` and
+      # `image` checks the ruleset requires.
+      app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
     secrets:
-      # A pull request opened with GITHUB_TOKEN triggers no workflows, so the
-      # release PR would arrive without the `build` and `image` checks the
-      # ruleset requires. RELEASE_PLEASE_TOKEN is a PAT with contents and
-      # pull-requests write.
-      token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+      app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
   enumerate:
     name: enumerate
