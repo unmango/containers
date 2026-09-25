@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0](https://github.com/unmango/containers/compare/v0.1.1...v0.2.0) (2026-09-25)
+
+
+### Features
+
+* add knot image ([#36](https://github.com/unmango/containers/issues/36)) ([f9793a6](https://github.com/unmango/containers/commit/f9793a6bdae9bb3b8def8dca3ea4f49eafb30559))
+
+
+### Dependencies
+
+* lock file maintenance ([#32](https://github.com/unmango/containers/issues/32)) ([48e9e4a](https://github.com/unmango/containers/commit/48e9e4ad6ead8eccfee3192296db988571f96466))
+
+
+### Continuous Integration
+
+* use unmango/actions release-please workflow ([#33](https://github.com/unmango/containers/issues/33)) ([8838709](https://github.com/unmango/containers/commit/88387095c2930b6518fc88e1945c20c79c111ca8))
+* use unmango/actions release-please workflow ([#33](https://github.com/unmango/containers/issues/33)) ([#38](https://github.com/unmango/containers/issues/38)) ([1da5ec9](https://github.com/unmango/containers/commit/1da5ec98e40cde752e5aea2c8004fb346ea68800))
+
 ## [0.1.1](https://github.com/unmango/containers/compare/v0.1.0...v0.1.1) (2026-09-09)
 
 
