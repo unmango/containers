@@ -321,11 +321,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788758950,
-        "narHash": "sha256-b3zONUcYXZHeoeYwDZdSDCzMj0s6ubmD6NT3D7sS+jU=",
+        "lastModified": 1790816506,
+        "narHash": "sha256-fAO23brXNN+MC0N+Sxl8aDYCey4PZNYMHm4V8yXuHtI=",
         "owner": "nlewo",
         "repo": "nix2container",
-        "rev": "b6ac40ef110c12ab1651fce5ea563f7837236439",
+        "rev": "ea3ac2139f037f7405a9ee3a8df870c1689bdf9a",
         "type": "github"
       },
       "original": {
@@ -336,11 +336,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1789785513,
-        "narHash": "sha256-B44WL6h0XoLjJ41bUPJk0X5SDinLCII//6EcBLXKiJ0=",
+        "lastModified": 1790689126,
+        "narHash": "sha256-ilerN1WLSvF+HMjziC/Wv99J5y02maDH+6hZPwsORKg=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "20b1ddd1aa5ace70c9468305030aa4f9ef79671b",
+        "rev": "b4fd65b198c599cbe814fcb9f42d25d021595ec9",
         "type": "github"
       },
       "original": {
@@ -386,11 +386,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789965534,
-        "narHash": "sha256-cvcE0c8XUs4kL+xv6inD7qJg+2ET5nBdogj0ovdHV8w=",
+        "lastModified": 1790775470,
+        "narHash": "sha256-S70Ttjkdzq9qn8OXxAXjHzf4Xu4AdLCAhON5IP1TxmQ=",
         "owner": "unmango",
         "repo": "pkgs",
-        "rev": "8de8883662830865bbc467e25816d0c14284130a",
+        "rev": "3bda4630fe02d1afd1738a8d6a94b3dcd77c0125",
         "type": "github"
       },
       "original": {
@@ -521,11 +521,11 @@
         "tailwindcss-animated-src": "tailwindcss-animated-src"
       },
       "locked": {
-        "lastModified": 1789731405,
-        "narHash": "sha256-coBPFy5y841710mAEZJ2hXetSq7nEJoyGNH+vVVxloU=",
+        "lastModified": 1790796018,
+        "narHash": "sha256-xfFTvvSQoI0McFEQW8IkCyW1yfEA6QhwKVL7TDfRpj4=",
         "ref": "refs/heads/master",
-        "rev": "7fcec78848bfd98f3f6a05411efaca1958da0e8f",
-        "revCount": 3226,
+        "rev": "c629b56c91146247173127dea54a1eaf3b0662b3",
+        "revCount": 3227,
         "type": "git",
         "url": "https://tangled.org/tangled.org/core"
       },
