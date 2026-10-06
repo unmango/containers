@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/unmango/containers/compare/v0.2.0...v0.2.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **renovate:** reference shared presets by name ([#39](https://github.com/unmango/containers/issues/39)) ([58a7857](https://github.com/unmango/containers/commit/58a785710b5b456d82e5ad4d365de4e207d3ff94)), closes [#37](https://github.com/unmango/containers/issues/37)
+
+
+### Documentation
+
+* add Hercules CI badge ([#35](https://github.com/unmango/containers/issues/35)) ([30b7d65](https://github.com/unmango/containers/commit/30b7d65b77b60a109d811cb3ba7f4d0b5740e8d6))
+
 ## [0.2.0](https://github.com/unmango/containers/compare/v0.1.1...v0.2.0) (2026-09-25)
 
 
