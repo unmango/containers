@@ -39,6 +39,14 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
+    # Source of Nixery, which is not in nixpkgs and publishes no image. This is
+    # TVL's automatic GitHub mirror of tools/nixery in their depot; it carries
+    # no flake, only the default.nix the image file imports.
+    nixery = {
+      url = "github:tazjin/nixery";
+      flake = false;
+    };
+
     # Source of knot 2 (`knot-rs`), which is not in nixpkgs and has no release
     # tag of its own. Its nixpkgs is left unfollowed: the knot builds with the
     # fenix toolchain pinned against it.

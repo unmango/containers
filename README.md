@@ -18,6 +18,7 @@ This repository is only for wrapping software someone else wrote.
 | `gitlab-operator-v2`  | [GitLab Operator][]                                                            |
 | `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store        |
 | `knot`                | [Tangled][] knot 2, `knot-server` and `knot-migrate`                           |
+| `nixery`              | [Nixery][], with a Nix store of its own                                        |
 | `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`                     |
 
 ## Usage
@@ -227,6 +228,22 @@ Mount a named volume at `/nix` to keep those additions: Docker copies the image'
 A bind mount, or `volume-nocopy`, skips that seeding and masks the store instead.
 Nothing garbage-collects it either, because the agent registers no GC roots, so `nix` is on `PATH` for `nix store gc`.
 
+### `nixery`
+
+Upstream publishes no image, and the one its `default.nix` builds runs as root and appends to `/etc/passwd` at startup.
+This one ships those files instead and runs as uid 1000, which owns the Nix store and database it carries, so nix-build needs no daemon and no root.
+
+Defaults, all overridable with `-e`: `PORT=8080`, `NIXERY_CHANNEL=nixos-unstable`, and the filesystem backend at `STORAGE_PATH=/var/lib/nixery/storage`.
+
+```sh
+docker run -p 8080:8080 -v nixery:/var/lib/nixery/storage ghcr.io/unmango/nixery:latest
+docker pull localhost:8080/shell/git
+```
+
+Paths nix-build substitutes land in the shipped store on the container's writable layer, and nothing collects them.
+Restarting the container returns it to the shipped store; the layers in `STORAGE_PATH` survive that.
+Don't mount anything at `/nix`, which would mask the store.
+
 ## Development
 
 ```sh
@@ -292,4 +309,5 @@ Never hand-edit `version.txt` or `CHANGELOG.md`.
 [CoreDNS]: https://coredns.io
 [GitLab Operator]: https://gitlab.com/gitlab-org/cloud-native/gitlab-operator
 [Hercules CI agent]: https://hercules-ci.com
+[Nixery]: https://nixery.dev
 [Tangled]: https://tangled.org/tangled.org/core
