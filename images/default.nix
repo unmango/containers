@@ -14,7 +14,7 @@
         inherit (inputs'.nix2container.packages) nix2container skopeo-nix2container;
         inherit (inputs'.pkgs.packages) gitlab-operator-v2;
         inherit (inputs'.tangled.packages) knot-rs knot-migrate;
-        inherit (inputs) tangled;
+        inherit (inputs) nixery tangled;
 
         mkImage = import ./lib/mk-image.nix {
           inherit (inputs'.nix2container.packages) nix2container;
@@ -34,6 +34,7 @@
         hercules-ci-agent = callPackage ./hercules-ci-agent { };
         hercules-ci-agent-standalone = callPackage ./hercules-ci-agent/standalone.nix { };
         knot = callPackage ./knot { };
+        nixery = callPackage ./nixery { };
         wireguard-cni-tools = callPackage ./wireguard-cni-tools { };
       };
 
