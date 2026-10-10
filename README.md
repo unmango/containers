@@ -19,6 +19,7 @@ This repository is only for wrapping software someone else wrote.
 | `hercules-ci-agent`   | [Hercules CI agent][], also as a `-standalone` variant carrying a store        |
 | `knot`                | [Tangled][] knot 2, `knot-server` and `knot-migrate`                           |
 | `nixery`              | [Nixery][], with a Nix store of its own                                        |
+| `pulumi`              | [Pulumi][] CLI as a `-bun` variant, with the bun language host and `bun`       |
 | `wireguard-cni-tools` | `wireguard-tools`, `iproute2`, `netcat`, coreutils, `bash`                     |
 
 ## Usage
@@ -244,6 +245,21 @@ Paths nix-build substitutes land in the shipped store on the container's writabl
 Restarting the container returns it to the shipped store; the layers in `STORAGE_PATH` survive that.
 Don't mount anything at `/nix`, which would mask the store.
 
+### `pulumi`
+
+Upstream's `pulumi/pulumi` images ship node, python, go and dotnet but not bun, so a program with `runtime: bun` cannot run in them.
+The `-bun` variant carries the Pulumi CLI, its bun and nodejs language hosts, `bun`, `bash` and coreutils, and runs as uid 1000 with a writable `HOME=/home/pulumi`.
+That is what a [Pulumi Kubernetes Operator][pko] workspace needs under its `restricted` security profile, which runs the container as uid 1000 and sets no `HOME`.
+
+No provider plugins are included: `pulumi install` downloads the versions a program's SDKs ask for, where a plugin on `PATH` would be used whatever its version.
+
+```yaml
+# Stack.spec
+workspaceTemplate:
+  spec:
+    image: ghcr.io/unmango/pulumi:3.255.0-bun
+```
+
 ## Development
 
 ```sh
@@ -310,4 +326,6 @@ Never hand-edit `version.txt` or `CHANGELOG.md`.
 [GitLab Operator]: https://gitlab.com/gitlab-org/cloud-native/gitlab-operator
 [Hercules CI agent]: https://hercules-ci.com
 [Nixery]: https://nixery.dev
+[Pulumi]: https://www.pulumi.com
+[pko]: https://github.com/pulumi/pulumi-kubernetes-operator
 [Tangled]: https://tangled.org/tangled.org/core

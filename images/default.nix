@@ -35,6 +35,7 @@
         hercules-ci-agent-standalone = callPackage ./hercules-ci-agent/standalone.nix { };
         knot = callPackage ./knot { };
         nixery = callPackage ./nixery { };
+        pulumi-bun = callPackage ./pulumi { };
         wireguard-cni-tools = callPackage ./wireguard-cni-tools { };
       };
 
