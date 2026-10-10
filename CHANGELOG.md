@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/unmango/containers/compare/v0.2.1...v0.3.0) (2026-10-10)
+
+
+### Features
+
+* add a pulumi image with the bun language host ([#47](https://github.com/unmango/containers/issues/47)) ([7a64d40](https://github.com/unmango/containers/commit/7a64d406aa64febb6c946fbac7a49a445414c022))
+
+
+### Dependencies
+
+* update ghcr.io/actions/actions-runner docker tag to v2.338.0 ([#45](https://github.com/unmango/containers/issues/45)) ([4bd95ae](https://github.com/unmango/containers/commit/4bd95ae956aeb1fdfcd7c08df02514f3eea87de6))
+
 ## [0.2.1](https://github.com/unmango/containers/compare/v0.2.0...v0.2.1) (2026-10-06)
 
 
