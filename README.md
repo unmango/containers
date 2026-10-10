@@ -249,7 +249,7 @@ Don't mount anything at `/nix`, which would mask the store.
 
 Upstream's `pulumi/pulumi` images ship node, python, go and dotnet but not bun, so a program with `runtime: bun` cannot run in them.
 The `-bun` variant carries the Pulumi CLI, its bun and nodejs language hosts, `bun`, `bash` and coreutils, and runs as uid 1000 with a writable `HOME=/home/pulumi`.
-That is the contract a [Pulumi Kubernetes Operator][pko] workspace needs under its `restricted` security profile, whose init containers also run `sh -c` scripts in this image.
+That is what a [Pulumi Kubernetes Operator][pko] workspace needs under its `restricted` security profile, which runs the container as uid 1000 and sets no `HOME`.
 
 No provider plugins are included: `pulumi install` downloads the versions a program's SDKs ask for, where a plugin on `PATH` would be used whatever its version.
 

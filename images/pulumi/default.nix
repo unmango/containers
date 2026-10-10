@@ -18,14 +18,16 @@
 #
 # The operator's workspace contract is what shapes it:
 #
-# - Its init containers run `sh -c` scripts with `ln` in this image, so it
-#   needs a shell and coreutils, not only `pulumi`.
 # - The `restricted` security profile runs every container as 1000:1000 and
 #   sets no HOME, so the image names that user and gives it a writable home.
 #   Pulumi keeps plugins and credentials under ~/.pulumi, and bun its install
 #   cache under ~/.bun.
-# - The agent and tini are copied in from the operator's own image, so neither
-#   belongs here.
+# - The agent and tini are copied in from the operator's own image, and its
+#   init containers run from that image too, so none of them belong here. The
+#   workspace container's command is the agent, which overrides Entrypoint.
+#
+# bash and coreutils are there for `kubectl exec` and for package scripts that
+# `bun install` runs.
 #
 # Provider plugins are left out on purpose. `pulumi install` downloads exactly
 # the versions a program's SDKs ask for, whereas a plugin on PATH is used
