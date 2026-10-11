@@ -91,6 +91,7 @@
           callPackage ./unifi-os-server {
             inherit (inputs'.pkgs.legacyPackages) unifi-os-server;
             inherit (inputs'.notsystemd.packages) notsystemd;
+            notsystemd-shims = inputs'.notsystemd.packages.shims;
           }
         );
       };
