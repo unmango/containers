@@ -78,11 +78,22 @@
       # `imageName` is the published repository and `imageTag` the version tag.
       # They come from here rather than from the attrset key so that variants of
       # one application, whose keys must differ, can still share a repository.
-      legacyPackages.imageMeta = lib.optionalAttrs isLinux (
-        lib.mapAttrs (_: img: {
+      legacyPackages = lib.optionalAttrs isLinux {
+        imageMeta = lib.mapAttrs (_: img: {
           inherit (img) imageName imageTag;
           inherit (img.meta) version variant;
-        }) images
-      );
+        }) images;
+
+        # Unfree, so kept out of `images`: CI enumerates `imageMeta` and never
+        # sees these. See ./unifi-os-server/default.nix.
+        # filterAttrs drops the override functions callPackage adds.
+        unifi-os-server = lib.filterAttrs (_: lib.isDerivation) (
+          callPackage ./unifi-os-server {
+            inherit (inputs'.pkgs.legacyPackages) unifi-os-server;
+            inherit (inputs'.notsystemd.packages) notsystemd;
+            notsystemd-shims = inputs'.notsystemd.packages.shims;
+          }
+        );
+      };
     };
 }

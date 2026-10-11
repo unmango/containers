@@ -52,6 +52,16 @@
     # fenix toolchain pinned against it.
     tangled.url = "git+https://tangled.org/tangled.org/core";
 
+    # Runs a systemd unit as a container's PID 1. The UniFi OS Server images
+    # use it in place of systemd.
+    notsystemd = {
+      url = "github:unmango/notsystemd";
+      inputs.mangopkgs.follows = "pkgs";
+      inputs.systems.follows = "systems";
+      inputs.flake-parts.follows = "flake-parts";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+    };
+
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
