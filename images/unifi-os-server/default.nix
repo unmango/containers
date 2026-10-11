@@ -29,7 +29,6 @@
   tzdata,
   unifi-os-server,
   util-linux,
-  writeTextDir,
 }:
 let
   # What the units' scripts call. They name most of it absolutely, as
