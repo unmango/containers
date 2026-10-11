@@ -19,6 +19,15 @@ push-%:
 	nix run .#$*.copyTo -- \
 		"docker://$(REGISTRY)/$(shell nix eval --raw '$(META).$*.imageName'):$(shell nix eval --raw '$(META).$*.imageTag')"
 
+# UniFi OS Server is unfree: its images are never built in CI or published
+# publicly. This pushes one to a private repository; see
+# images/unifi-os-server/default.nix.
+UOS := .\#legacyPackages.$(SYSTEM).unifi-os-server
+
+push-uos-%:
+	nix run '$(UOS).$*.copyTo' -- \
+		"docker://$(REGISTRY)/$(shell nix eval --raw '$(UOS).$*.imageName'):$(shell nix eval --raw '$(UOS).$*.imageTag')"
+
 manifests: $(patsubst images/%/base.nix,manifest-%,$(wildcard images/*/base.nix))
 
 manifest-%:
