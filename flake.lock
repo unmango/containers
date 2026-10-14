@@ -447,11 +447,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791693582,
-        "narHash": "sha256-txLWsS8AxBNiwUDWxLmDFKZbTU33WglOTBsK4j559d4=",
+        "lastModified": 1791745754,
+        "narHash": "sha256-iv8W2yhNpJykA0SCwc1GjcJKcRjxn2FTxkrF7HPqo0A=",
         "owner": "unmango",
         "repo": "notsystemd",
-        "rev": "d84f3d1797bf50bdd628afe25362b031cd26af43",
+        "rev": "4aec320d1d058d4bfd5c0fcff5ad595cf5fa18c1",
         "type": "github"
       },
       "original": {
@@ -480,11 +480,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791692293,
-        "narHash": "sha256-cs6XVi80ffSFYQ5VhEXi/pJTYqyYbVzVH57WbcN/AXA=",
+        "lastModified": 1791744691,
+        "narHash": "sha256-j7/IszCGxlpA82FeJPXWSwXw5V+myYKPMhwZw46jn94=",
         "owner": "unmango",
         "repo": "pkgs",
-        "rev": "519510eb682fb1c68385ea272e59a08cb39cf980",
+        "rev": "d17ebfdd871f53d54c010b355a40d28f240eff7d",
         "type": "github"
       },
       "original": {
