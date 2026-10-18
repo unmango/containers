@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0](https://github.com/unmango/containers/compare/v0.2.1...v0.3.0) (2026-10-18)
+
+
+### Features
+
+* add a pulumi image with the bun language host ([#47](https://github.com/unmango/containers/issues/47)) ([7a64d40](https://github.com/unmango/containers/commit/7a64d406aa64febb6c946fbac7a49a445414c022))
+* **unifi-os-server:** unpublished per-service images ([#48](https://github.com/unmango/containers/issues/48)) ([25acc8c](https://github.com/unmango/containers/commit/25acc8c9622b0d8144f59ade7e3cf782e2b35024))
+
+
+### Bug Fixes
+
+* **unifi-os-server:** give each image a single root tree ([#50](https://github.com/unmango/containers/issues/50)) ([760cb2e](https://github.com/unmango/containers/commit/760cb2e10adceea235593a5d4aa87e6dc0a59eb2))
+
+
+### Dependencies
+
+* **unifi-os-server:** take notsystemd's shims and pkgs' init wrappers ([#49](https://github.com/unmango/containers/issues/49)) ([7cfe235](https://github.com/unmango/containers/commit/7cfe235f49b76f0df3729ad373af7a5dae5907e2))
+* update ghcr.io/actions/actions-runner docker tag to v2.338.0 ([#45](https://github.com/unmango/containers/issues/45)) ([4bd95ae](https://github.com/unmango/containers/commit/4bd95ae956aeb1fdfcd7c08df02514f3eea87de6))
+
 ## [0.2.1](https://github.com/unmango/containers/compare/v0.2.0...v0.2.1) (2026-10-06)
 
 
