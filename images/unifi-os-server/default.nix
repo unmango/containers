@@ -21,6 +21,7 @@
   jq,
   lib,
   mkImage,
+  nix2container,
   notsystemd,
   notsystemd-shims,
   postgresql_14,
@@ -151,6 +152,16 @@ let
       rm -rf $out/nix-support
     '';
 
+  # What every image carries apart from its component, in a layer of its own so
+  # the seven images share it in the registry and on each node.
+  common = nix2container.buildLayer {
+    deps = [
+      fhs
+      cacert
+      notsystemd
+    ];
+  };
+
   mkUosImage =
     component: unit:
     let
@@ -161,6 +172,7 @@ let
       inherit (unifi-os-server) version;
 
       copyToRoot = [ root ];
+      layers = [ common ];
 
       perms = [
         {
