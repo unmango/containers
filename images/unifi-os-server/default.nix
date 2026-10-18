@@ -21,6 +21,7 @@
   jq,
   lib,
   mkImage,
+  nix2container,
   notsystemd,
   notsystemd-shims,
   postgresql_14,
@@ -134,27 +135,53 @@ let
         printf %s "$shadow" > $out/etc/shadow
       '';
 
+  # One tree per image. nix2container refuses a path that two copyToRoot
+  # entries both hold when only one of them sets perms for it, and the
+  # component, fhs, accounts and cacert all hold /usr, /sbin or /etc. Store
+  # files are linked rather than copied, except the accounts files, which
+  # perms has to find as regular files.
+  mkRoot =
+    component:
+    runCommand "unifi-os-server-${component}-root" { } ''
+      mkdir $out
+      for src in ${fhs} ${cacert} ${unifi-os-server.${component}}; do
+        cp -rsT --remove-destination "$src" $out
+        chmod -R u+w $out
+      done
+      cp -rT --remove-destination ${accounts} $out
+      rm -rf $out/nix-support
+    '';
+
+  # What every image carries apart from its component, in a layer of its own so
+  # the seven images share it in the registry and on each node.
+  common = nix2container.buildLayer {
+    deps = [
+      fhs
+      cacert
+      notsystemd
+    ];
+  };
+
   mkUosImage =
     component: unit:
+    let
+      root = mkRoot component;
+    in
     mkImage {
       name = "unifi-os-server-${component}";
       inherit (unifi-os-server) version;
 
-      copyToRoot = [
-        unifi-os-server.${component}
-        fhs
-        accounts
-        cacert
-      ];
+      copyToRoot = [ root ];
+      layers = [ common ];
 
       perms = [
         {
-          path = fhs;
+          path = root;
           regex = "/tmp$";
           mode = "1777";
         }
         {
-          path = accounts;
+          path = root;
           regex = "/etc/shadow$";
           mode = "0640";
         }
