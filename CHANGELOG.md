@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/unmango/containers/compare/v0.3.0...v0.3.1) (2026-10-27)
+
+
+### Documentation
+
+* configure the engineering agent skills ([#52](https://github.com/unmango/containers/issues/52)) ([7d989b7](https://github.com/unmango/containers/commit/7d989b76840e55551e18c6525f1f54b5c4b6cf68))
+
 ## [0.3.0](https://github.com/unmango/containers/compare/v0.2.1...v0.3.0) (2026-10-18)
 
 
