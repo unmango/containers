@@ -3,8 +3,8 @@
   "mediaType": "application/vnd.oci.image.manifest.v1+json",
   "config": {
     "mediaType": "application/vnd.oci.image.config.v1+json",
-    "digest": "sha256:3027ff446b2083fc96c214916922b117f4d996b0683295ce7b43fd0048eae210",
-    "size": 5404
+    "digest": "sha256:c49b99e577f332dbf2c1445478629aa7836919e75098fd22ebe001f5e4a3ce4e",
+    "size": 5407
   },
   "layers": [
     {
@@ -14,28 +14,28 @@
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:22a52abe2675342b98ff1020e24756b70dec74320d62c5f01973b312e4bc042c",
-      "size": 16779084
+      "digest": "sha256:b021bdaf6d094f40f95c117d8995a1fd8289aa2ef8685a5a8279cff5315e9c73",
+      "size": 16777637
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:63c846bbd9c116bec7762fda532ab80c12bd80dd41b675f57b56c8b311de48d0",
-      "size": 3561
+      "digest": "sha256:85caf9975e261f48eed2dd0b519468e79b4479e0ba49fa6e1b526ce6f4918d18",
+      "size": 3563
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:577f3edc6a403caf5e1d36050abf05a22e73f81491c49e95aef70ba7df131075",
-      "size": 36259939
+      "digest": "sha256:29a7a739b83726290bcd0ce2f4b531ad0c6de1bc67f6aeede5ce7f29e9236330",
+      "size": 36938154
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:4d78239731fea4b8dcada9e5a08216b350d3834cc27eeb70c2fd0c6a57aa08b8",
-      "size": 27857504
+      "digest": "sha256:1f9dd3864c8636daacbb861458b0d5d7b5232fad63b9113f4808e3d2f35e821e",
+      "size": 27874958
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:dc809342ddd4bb915d884e1a9d4fa11dffd0fa6f40aeb66bde747e1cc92fe6c3",
-      "size": 3830
+      "digest": "sha256:c062f39a2e51d696ce9a1e7ad8b3f8bd2f524d2fa7484e7b5f8dc9ce017738c0",
+      "size": 3831
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
@@ -44,21 +44,21 @@
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:11db2176ff7fb1725cf50ea3490cdc44adb9756dbfce757ef82f85fd57ea52c2",
-      "size": 322473328
+      "digest": "sha256:3d08d5749d50c757c54e799cad06d26c637c235ab30c8fc4b71ae64c68af9ce7",
+      "size": 323672245
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:93566b9505d2331b8b99f457798ee60e5fba90ac5f24e4d64cc1d8920b29aa54",
-      "size": 23059616
+      "digest": "sha256:2359b0e447162f7e07ced627076e8a7dc90762a1b00313b5eddc06c63de4b1e9",
+      "size": 23824427
     },
     {
       "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-      "digest": "sha256:7d66ca5b60f47730f005fc35fa5ca8782a24cd00e225064e3d6e4381e977a7a3",
-      "size": 86853896
+      "digest": "sha256:b2e2e08a592b57ae591412b9294c738cd14e5700855dd72dbe47fe35bc25418c",
+      "size": 87656318
     }
   ],
   "annotations": {
-    "org.opencontainers.image.description": "https://github.com/actions/runner/releases/tag/v2.338.0"
+    "org.opencontainers.image.description": "https://github.com/actions/runner/releases/tag/v2.338.1"
   }
 }
