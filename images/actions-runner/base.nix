@@ -9,5 +9,5 @@
   registryUrl = "ghcr.io";
   imageName = "actions/actions-runner";
   # renovate: datasource=docker depName=ghcr.io/actions/actions-runner
-  version = "2.338.1";
+  version = "2.338.2";
 }
