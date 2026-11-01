@@ -447,11 +447,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791745754,
-        "narHash": "sha256-iv8W2yhNpJykA0SCwc1GjcJKcRjxn2FTxkrF7HPqo0A=",
+        "lastModified": 1793576158,
+        "narHash": "sha256-zJumBQL+H+rSyCgAtnv4Xtjl0pL4czx3c4Ct9yJUuE4=",
         "owner": "unmango",
         "repo": "notsystemd",
-        "rev": "4aec320d1d058d4bfd5c0fcff5ad595cf5fa18c1",
+        "rev": "0fd0285a7b224acc04140cd1b597520cf21a2f5c",
         "type": "github"
       },
       "original": {

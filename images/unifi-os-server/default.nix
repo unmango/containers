@@ -75,7 +75,7 @@ let
         ln -s "$(readlink -f "$tool")" "$out/$dir/$(basename "$tool")"
       done
     done
-    mkdir -p $out/usr/share $out/var $out/tmp $out/run/notsystemd $out/var/log $out/data
+    mkdir -p $out/usr/share $out/var $out/tmp $out/run/notsystemd $out/run/dbus $out/var/log $out/data
     ln -s ${tzdata}/share/zoneinfo $out/usr/share/zoneinfo
     ln -s /run $out/var/run
   '';
@@ -221,11 +221,13 @@ let
       ];
 
       config = {
-        Entrypoint = [
-          (lib.getExe notsystemd)
+        # The command is all in Cmd, so a pod can run any of these images as
+        # the bus sidecar with `args: [dbus]`.
+        Entrypoint = [ (lib.getExe notsystemd) ];
+        Cmd = [
           "run"
+          "/usr/lib/systemd/system/${unit}"
         ];
-        Cmd = [ "/usr/lib/systemd/system/${unit}" ];
         Env = [
           "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
           "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
@@ -234,6 +236,9 @@ let
           # notsystemd's state directory, shared by the pod's containers: the
           # systemctl shim and `notsystemd is-active` probes read it.
           "/run/notsystemd" = { };
+          # The system bus socket, served by `notsystemd dbus` in a sidecar,
+          # which unifi-core watches ulp-go and the Network app through.
+          "/run/dbus" = { };
           # Every service keeps its state under /data, as on a console.
           "/data" = { };
         };
