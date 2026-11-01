@@ -32,6 +32,11 @@
   util-linux,
 }:
 let
+  # nixpkgs builds dpkg with --disable-start-stop-daemon.
+  start-stop-daemon = dpkg.overrideAttrs (old: {
+    configureFlags = lib.remove "--disable-start-stop-daemon" old.configureFlags;
+  });
+
   # What the units' scripts call. They name most of it absolutely, as
   # /bin/bash, /sbin/start-stop-daemon, /usr/bin/psql or /bin/systemctl, and
   # Debian splits those across four directories, so every tool is linked into
@@ -43,7 +48,7 @@ let
       coreutils
       curl
       # start-stop-daemon, which every Go service's start.sh runs.
-      dpkg
+      start-stop-daemon
       findutils
       gawk
       gnugrep
