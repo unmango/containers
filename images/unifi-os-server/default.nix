@@ -157,15 +157,43 @@ let
       rm -rf $out/nix-support
     '';
 
-  # What every image carries apart from its component, in a layer of its own so
-  # the seven images share it in the registry and on each node.
+  # What every image carries apart from its component, split into one layer per
+  # popular store path so the seven images share them in the registry and on
+  # each node.
   common = nix2container.buildLayer {
     deps = [
       fhs
       cacert
       notsystemd
     ];
+    maxLayers = 20;
   };
+
+  # A component's closure is held apart from the component itself, so a
+  # Ubiquiti version bump re-uploads only the component and not the JRE or Node
+  # under it, and a change to the root tree re-uploads neither.
+  mkLayers =
+    component:
+    let
+      pkg = unifi-os-server.${component};
+      runtime = nix2container.buildLayer {
+        deps = [ pkg ];
+        ignore = pkg;
+        layers = [ common ];
+        maxLayers = 10;
+      };
+    in
+    [
+      common
+      runtime
+      (nix2container.buildLayer {
+        deps = [ pkg ];
+        layers = [
+          common
+          runtime
+        ];
+      })
+    ];
 
   mkUosImage =
     component: unit:
@@ -177,7 +205,7 @@ let
       inherit (unifi-os-server) version;
 
       copyToRoot = [ root ];
-      layers = [ common ];
+      layers = mkLayers component;
 
       perms = [
         {
