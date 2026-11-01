@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.2](https://github.com/unmango/containers/compare/v0.3.1...v0.3.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **unifi-os-server:** build dpkg with start-stop-daemon ([#57](https://github.com/unmango/containers/issues/57)) ([b8bbced](https://github.com/unmango/containers/commit/b8bbced313d6ec0606456193891c328ef6d680f2))
+
+
+### Performance Improvements
+
+* **unifi-os-server:** give each image's component and runtime their own layers ([#58](https://github.com/unmango/containers/issues/58)) ([ed8ff3a](https://github.com/unmango/containers/commit/ed8ff3a43a6970b6080ade0862ad4072d38dc1c1))
+
 ## [0.3.1](https://github.com/unmango/containers/compare/v0.3.0...v0.3.1) (2026-10-27)
 
 
