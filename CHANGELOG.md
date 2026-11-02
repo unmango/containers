@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/unmango/containers/compare/v0.3.2...v0.4.0) (2026-11-02)
+
+
+### Features
+
+* **unifi-os-server:** ship notsystemd's D-Bus facade ([#61](https://github.com/unmango/containers/issues/61)) ([1568596](https://github.com/unmango/containers/commit/15685964bd39317b5608a7394ef388e25419a9e6))
+
+
+### Dependencies
+
+* update ghcr.io/actions/actions-runner docker tag to v2.338.2 ([#56](https://github.com/unmango/containers/issues/56)) ([c4f4739](https://github.com/unmango/containers/commit/c4f47390c80e85a4c6d20e71ad9df89e45b9382a))
+
 ## [0.3.2](https://github.com/unmango/containers/compare/v0.3.1...v0.3.2) (2026-11-01)
 
 
